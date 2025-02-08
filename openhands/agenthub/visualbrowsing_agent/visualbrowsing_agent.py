@@ -1,3 +1,7 @@
+###
+import os
+from datetime import datetime
+
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.utils.obs import flatten_axtree_to_str
 
@@ -21,7 +25,12 @@ from openhands.runtime.plugins import (
     PluginRequirement,
 )
 
+timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+SCREENSHOT_FOLDER = f'logs/{timestamp}/web_docu'
+os.makedirs(SCREENSHOT_FOLDER, exist_ok=True)
 
+
+###
 def get_error_prefix(obs: BrowserOutputObservation) -> str:
     # temporary fix for OneStopMarket to ignore timeout errors
     if 'timeout' in obs.last_browser_action_error:
@@ -273,6 +282,40 @@ Note:
         observation_txt, som_screenshot = create_observation_prompt(
             cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
         )
+        ###
+        # Save screenshot if available
+        if som_screenshot is not None and len(som_screenshot) > 0:
+            timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
+            screenshot_filename = os.path.join(
+                SCREENSHOT_FOLDER,
+                f'{timestamp_som}_screenshot_{len(state.history)}.png',
+            )
+            import urllib.request
+
+            try:
+                urllib.request.urlretrieve(som_screenshot, screenshot_filename)
+                logger.info(f'Saved screenshot to {screenshot_filename}')
+            except Exception as e:
+                logger.error(f'Failed to save screenshot: {e}')
+        ###
+
+        ###
+        # Save the webpage structure (AXTree) and interaction history
+        timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
+        content_filename = os.path.join(
+            SCREENSHOT_FOLDER, f'{timestamp_web}_webpage_{len(state.history)}.txt'
+        )
+        with open(content_filename, 'w', encoding='utf-8') as f:
+            f.write('==== PAGE URL ====\n')
+            if last_obs is not None and hasattr(last_obs, 'url'):
+                f.write(f'{last_obs.url}\n\n')
+            else:
+                f.write('No URL available\n\n')
+            f.write('==== ACCESSIBILITY TREE ====\n')
+            f.write(cur_axtree_txt + '\n\n')
+            # f.write("==== PREVIOUS ACTIONS ====\n")
+            # f.write(history_prompt + "\n")
+        ###
         human_prompt = [TextContent(type='text', text=goal_txt)]
         if len(goal_images) > 0:
             human_prompt.append(ImageContent(image_urls=goal_images))

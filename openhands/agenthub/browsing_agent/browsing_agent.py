@@ -1,4 +1,6 @@
 import os
+import time
+from datetime import datetime
 
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.utils.obs import flatten_axtree_to_str
@@ -19,10 +21,22 @@ from openhands.events.event import EventSource
 from openhands.events.observation import BrowserOutputObservation
 from openhands.events.observation.observation import Observation
 from openhands.llm.llm import LLM
+
+###
+from openhands.llm.metrics_tracker import MetricsTracker
 from openhands.runtime.plugins import (
     PluginRequirement,
 )
 
+###
+
+
+###
+# Define the folder for saving webpage documentation
+timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+WEB_DOCU_FOLDER = f'logs/{timestamp}/web_docu'
+os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
+###
 USE_NAV = (
     os.environ.get('USE_NAV', 'true') == 'true'
 )  # only disable NAV actions when running webarena and miniwob benchmarks
@@ -111,6 +125,9 @@ class BrowsingAgent(Agent):
         - llm (LLM): The llm to be used by this agent
         """
         super().__init__(llm, config)
+        ###
+        self.metrics_tracker = MetricsTracker(model_name=llm.config.model)
+        ###
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
         # see https://github.com/ServiceNow/BrowserGym/blob/main/core/src/browsergym/core/action/highlevel.py for more details
         action_subsets = ['chat', 'bid']
@@ -142,6 +159,11 @@ class BrowsingAgent(Agent):
         - MessageAction(content) - Message action to run (e.g. ask for clarification)
         - AgentFinishAction() - end the interaction
         """
+
+        ###
+        step_start_time = time.time()  # Start timing
+        input_tokens, output_tokens = 0, 0  # Default token values
+        ###
         messages: list[Message] = []
         prev_actions = []
         cur_url = ''
@@ -162,6 +184,12 @@ class BrowsingAgent(Agent):
                 last_action = event
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
                 # agent has responded, task finished.
+                ###
+                logger.info('Final Metrics Summary:')
+                logger.info(self.llm.metrics.log())
+                # Save final metrics when finishing the task
+                self.metrics_tracker.save_metrics()
+                ###
                 return AgentFinishAction(outputs={'content': event.content})
             elif isinstance(event, Observation):
                 last_obs = event
@@ -195,6 +223,15 @@ class BrowsingAgent(Agent):
                     with_clickable=True,
                     filter_visible_only=True,
                 )
+                ###
+                # Save the AXTree representation to a file
+                timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%f')[:-3]
+                filename = os.path.join(
+                    WEB_DOCU_FOLDER, f'{timestamp}_page_{len(state.history)}.html'
+                )
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(cur_axtree_txt)
+            ###
             except Exception as e:
                 logger.error(
                     'Error when trying to process the accessibility tree: %s', e
@@ -220,4 +257,13 @@ class BrowsingAgent(Agent):
             messages=self.llm.format_messages_for_llm(messages),
             stop=[')```', ')\n```'],
         )
+        ###
+        # Extract token usage from the response object
+        if hasattr(response, 'usage'):
+            input_tokens = response.usage.get('prompt_tokens', 0)
+            output_tokens = response.usage.get('completion_tokens', 0)
+
+        # Record metrics before returning
+        self.metrics_tracker.record_step(step_start_time, input_tokens, output_tokens)
+        ###
         return self.response_parser.parse(response)

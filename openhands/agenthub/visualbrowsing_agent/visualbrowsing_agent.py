@@ -25,9 +25,11 @@ from openhands.runtime.plugins import (
     PluginRequirement,
 )
 
+###
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
-SCREENSHOT_FOLDER = f'logs/{timestamp}/web_docu'
-os.makedirs(SCREENSHOT_FOLDER, exist_ok=True)
+EXPERIMENT_FOLDER = os.path.join('logs', timestamp)
+WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
+os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
 
 
 ###
@@ -287,7 +289,7 @@ Note:
         if som_screenshot is not None and len(som_screenshot) > 0:
             timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
             screenshot_filename = os.path.join(
-                SCREENSHOT_FOLDER,
+                WEB_DOCU_FOLDER,
                 f'{timestamp_som}_screenshot_{len(state.history)}.png',
             )
             import urllib.request
@@ -303,7 +305,7 @@ Note:
         # Save the webpage structure (AXTree) and interaction history
         timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
         content_filename = os.path.join(
-            SCREENSHOT_FOLDER, f'{timestamp_web}_webpage_{len(state.history)}.txt'
+            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{len(state.history)}.txt'
         )
         with open(content_filename, 'w', encoding='utf-8') as f:
             f.write('==== PAGE URL ====\n')

@@ -32,9 +32,9 @@ from openhands.runtime.plugins import (
 
 
 ###
-# Define the folder for saving webpage documentation
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
-WEB_DOCU_FOLDER = f'logs/{timestamp}/web_docu'
+EXPERIMENT_FOLDER = os.path.join('logs', timestamp)
+WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
 os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
 ###
 USE_NAV = (
@@ -225,9 +225,9 @@ class BrowsingAgent(Agent):
                 )
                 ###
                 # Save the AXTree representation to a file
-                timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%f')[:-3]
+                timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M-%f')[:-3]
                 filename = os.path.join(
-                    WEB_DOCU_FOLDER, f'{timestamp}_page_{len(state.history)}.html'
+                    WEB_DOCU_FOLDER, f'{timestamp_web}_page_{len(state.history)}.html'
                 )
                 with open(filename, 'w', encoding='utf-8') as f:
                     f.write(cur_axtree_txt)

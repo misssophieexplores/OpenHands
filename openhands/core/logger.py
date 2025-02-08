@@ -252,8 +252,9 @@ def get_file_handler(log_dir: str, log_level: int = logging.INFO):
     """Returns a file handler for logging."""
     os.makedirs(log_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+    EXPERIMENT_FOLDER = os.path.join(log_dir, timestamp)
     file_name = f'openhands_{timestamp}.log'
-    file_handler = logging.FileHandler(os.path.join(log_dir, file_name))
+    file_handler = logging.FileHandler(os.path.join(EXPERIMENT_FOLDER, file_name))
     file_handler.setLevel(log_level)
     file_handler.setFormatter(file_formatter)
     return file_handler

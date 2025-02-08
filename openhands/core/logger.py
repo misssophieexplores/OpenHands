@@ -36,10 +36,10 @@ else:
 if DEBUG:
     LOG_LEVEL = 'DEBUG'
 
-LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'False').lower() in ['true', '1', 'yes']
+LOG_TO_FILE = True  # LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'False').lower() in ['true', '1', 'yes']
 DISABLE_COLOR_PRINTING = False
 
-LOG_ALL_EVENTS = os.getenv('LOG_ALL_EVENTS', 'False').lower() in ['true', '1', 'yes']
+LOG_ALL_EVENTS = True  # LOG_ALL_EVENTS = os.getenv('LOG_ALL_EVENTS', 'False').lower() in ['true', '1', 'yes']
 
 # Controls whether to stream Docker container logs
 DEBUG_RUNTIME = os.getenv('DEBUG_RUNTIME', 'False').lower() in ['true', '1', 'yes']
@@ -251,7 +251,7 @@ def get_console_handler(log_level: int = logging.INFO, extra_info: str | None = 
 def get_file_handler(log_dir: str, log_level: int = logging.INFO):
     """Returns a file handler for logging."""
     os.makedirs(log_dir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y-%m-%d')
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
     file_name = f'openhands_{timestamp}.log'
     file_handler = logging.FileHandler(os.path.join(log_dir, file_name))
     file_handler.setLevel(log_level)

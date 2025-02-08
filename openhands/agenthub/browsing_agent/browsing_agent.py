@@ -1,3 +1,5 @@
+###
+import json
 import os
 import time
 from datetime import datetime
@@ -22,8 +24,6 @@ from openhands.events.event import EventSource
 from openhands.events.observation import BrowserOutputObservation
 from openhands.events.observation.observation import Observation
 from openhands.llm.llm import LLM
-
-###
 from openhands.llm.metrics_tracker import MetricsTracker
 from openhands.runtime.plugins import (
     PluginRequirement,
@@ -31,8 +31,37 @@ from openhands.runtime.plugins import (
 
 EXPERIMENT_FOLDER = get_experiment_folder()
 WEB_DOCU_FOLDER = get_web_docu_folder()
+URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
 ###
 
+
+###
+def log_url_action_json(url, action):
+    """Append URL, action, and timestamp to a separate JSON log file."""
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    entry = {'timestamp': timestamp, 'url': url, 'action': action}
+
+    try:
+        # Read existing log and append new entry
+        if os.path.exists(URL_LOG_FILE_JSON):
+            with open(URL_LOG_FILE_JSON, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        else:
+            data = []
+
+        data.append(entry)
+
+        # Save updated log
+        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+    except json.JSONDecodeError:
+        # If the file is corrupted or empty, start fresh
+        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
+            json.dump([entry], f, indent=4)
+
+
+###
 
 USE_NAV = (
     os.environ.get('USE_NAV', 'true') == 'true'
@@ -210,9 +239,17 @@ class BrowsingAgent(Agent):
                 self.error_accumulator += 1
                 if self.error_accumulator > 5:
                     return MessageAction('Too many errors encountered. Task failed.')
+            ###
+            cur_url_str = last_obs.url if hasattr(last_obs, 'url') else None
+            last_action_str = (
+                last_obs.last_browser_action
+                if hasattr(last_obs, 'last_browser_action')
+                else None
+            )
 
-            cur_url = last_obs.url
-
+            # Log to the separate file
+            log_url_action_json(cur_url_str, last_action_str)
+            ###
             try:
                 cur_axtree_txt = flatten_axtree_to_str(
                     last_obs.axtree_object,

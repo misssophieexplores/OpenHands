@@ -9,6 +9,7 @@ from openhands.agenthub.browsing_agent.response_parser import BrowsingResponsePa
 from openhands.controller.agent import Agent
 from openhands.controller.state.state import State
 from openhands.core.config import AgentConfig
+from openhands.core.logger import get_experiment_folder, get_web_docu_folder
 from openhands.core.logger import openhands_logger as logger
 from openhands.core.message import Message, TextContent
 from openhands.events.action import (
@@ -28,15 +29,11 @@ from openhands.runtime.plugins import (
     PluginRequirement,
 )
 
+EXPERIMENT_FOLDER = get_experiment_folder()
+WEB_DOCU_FOLDER = get_web_docu_folder()
 ###
 
 
-###
-timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
-EXPERIMENT_FOLDER = os.path.join('logs', timestamp)
-WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
-os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
-###
 USE_NAV = (
     os.environ.get('USE_NAV', 'true') == 'true'
 )  # only disable NAV actions when running webarena and miniwob benchmarks

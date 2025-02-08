@@ -4,7 +4,10 @@ import statistics
 import time
 from datetime import datetime
 
+from openhands.core.logger import get_experiment_folder
 from openhands.core.logger import openhands_logger as logger
+
+log_folder = get_experiment_folder()
 
 
 class MetricsTracker:
@@ -21,7 +24,7 @@ class MetricsTracker:
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
 
-    def save_metrics(self, log_folder='logs'):
+    def save_metrics(self, log_folder=log_folder):
         end_time = time.time()
         full_runtime = end_time - self.start_time
         total_tokens = self.input_tokens + self.output_tokens
@@ -47,7 +50,7 @@ class MetricsTracker:
 
         # Save JSON file with naming convention
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
-        filename = f'openhands_{timestamp}_metrics.json'
+        filename = f'{timestamp}_metrics.json'
         filepath = os.path.join(log_folder, filename)
         os.makedirs(log_folder, exist_ok=True)
 

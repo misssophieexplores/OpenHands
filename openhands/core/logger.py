@@ -4,12 +4,16 @@ import os
 import re
 import sys
 import traceback
+
+###
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal, Mapping
 
 import litellm
 from termcolor import colored
+
+###
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 DEBUG = os.getenv('DEBUG', 'False').lower() in ['true', '1', 'yes']
@@ -252,9 +256,8 @@ def get_file_handler(log_dir: str, log_level: int = logging.INFO):
     """Returns a file handler for logging."""
     os.makedirs(log_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
-    EXPERIMENT_FOLDER = os.path.join(log_dir, timestamp)
-    file_name = f'openhands_{timestamp}.log'
-    file_handler = logging.FileHandler(os.path.join(EXPERIMENT_FOLDER, file_name))
+    file_name = f'{timestamp}.log'
+    file_handler = logging.FileHandler(os.path.join(log_dir, file_name))
     file_handler.setLevel(log_level)
     file_handler.setFormatter(file_formatter)
     return file_handler
@@ -302,11 +305,18 @@ openhands_logger.addFilter(SensitiveDataFilter(openhands_logger.name))
 openhands_logger.propagate = False
 openhands_logger.debug('Logging initialized')
 
-LOG_DIR = os.path.join(
-    # parent dir of openhands/core (i.e., root of the repo)
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    'logs',
-)
+###
+# Create a single timestamp-based experiment folder
+TIMESTAMP = datetime.now().strftime('%Y-%m-%d_%H-%M')
+FOLDER_NAME = f'openhands_{TIMESTAMP}'
+EXPERIMENT_FOLDER = os.path.join('logs', FOLDER_NAME)
+WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
+
+# Ensure folders exist
+os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
+
+LOG_DIR = EXPERIMENT_FOLDER  # Redirect logs to the main folder
+###
 
 if LOG_TO_FILE:
     openhands_logger.addHandler(
@@ -385,6 +395,14 @@ def _setup_llm_logger(name: str, log_level: int):
     if LOG_TO_FILE:
         logger.addHandler(_get_llm_file_handler(name, log_level))
     return logger
+
+
+def get_experiment_folder():
+    return EXPERIMENT_FOLDER
+
+
+def get_web_docu_folder():
+    return WEB_DOCU_FOLDER
 
 
 llm_prompt_logger = _setup_llm_logger('prompt', current_log_level)

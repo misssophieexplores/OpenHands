@@ -1,3 +1,4 @@
+import atexit
 import json
 import os
 import statistics
@@ -23,6 +24,18 @@ class MetricsTracker:
         self.model_calls = 0
         self.visited_urls = {}
         self.domain_counts = {}
+        self.query: str | None = None
+        self.final_answer: str | None = None
+        atexit.register(self.save_metrics)  # Automatically save at program exit
+
+    def set_query(self, query: str):
+        """Sets the initial query (only once)."""
+        if self.query is None:  # Ensure we don't overwrite it
+            self.query = query
+
+    def set_final_answer(self, answer: str):
+        """Sets the final answer."""
+        self.final_answer = answer
 
     def record_step(self, step_start_time, input_tokens, output_tokens):
         step_duration = time.time() - step_start_time
@@ -99,7 +112,10 @@ class MetricsTracker:
         metrics = {
             'timestamp': timestamp,
             'folder_name': log_folder,
+            'query': self.query,
             'full_runtime': full_runtime,
+            'start_url': None,
+            'final_answer': self.final_answer,
             'shortest_time_difference': min_latency,
             'longest_time_difference': max_latency,
             'mean_time_difference': mean_latency,
@@ -121,7 +137,7 @@ class MetricsTracker:
         os.makedirs(log_folder, exist_ok=True)
 
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(metrics, f, indent=4)
+            json.dump(metrics, f, indent=4, ensure_ascii=False)
 
         logger.info(f'Metrics saved to {filepath}')
         return metrics

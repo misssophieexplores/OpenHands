@@ -42,6 +42,13 @@ URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
 
 
 ###
+def initialize_url_log():
+    """Create the URL action log file if it does not exist."""
+    if not os.path.exists(URL_LOG_FILE_JSON):
+        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
+            json.dump([], f, indent=4)
+
+
 def log_url_action_json(url, action, agent_type='VisualBrowsingAgent'):
     """Append URL, action, and timestamp to a separate JSON log file."""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -52,10 +59,7 @@ def log_url_action_json(url, action, agent_type='VisualBrowsingAgent'):
         'action': action,
         'agent_type': agent_type,
     }
-    # Append to JSON log file
-    if not os.path.exists(URL_LOG_FILE_JSON):
-        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump([log_entry], f, indent=4)
+    initialize_url_log()
     with open(URL_LOG_FILE_JSON, 'r+', encoding='utf-8') as f:
         try:
             logs = json.load(f)
@@ -269,6 +273,8 @@ Note:
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
                 # agent has responded, task finished.
                 ###
+                final_answer = event.content
+                self.metrics_tracker.set_final_answer(final_answer)
                 logger.info('Final Metrics Summary:')
                 logger.info(self.llm.metrics.log())
                 # Save final metrics when finishing the task
@@ -292,6 +298,19 @@ Note:
         history_prompt = get_history_prompt(prev_actions)
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
+                # Ensure the error is logged before stopping
+                cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
+                last_action_str = (
+                    last_obs.last_browser_action
+                    if hasattr(last_obs, 'last_browser_action')
+                    else 'unknown'
+                )
+
+                log_url_action_json(
+                    url=cur_url_str, action=last_action_str
+                )  # Log before exiting
+                self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs)
                 if len(error_prefix) > 0:

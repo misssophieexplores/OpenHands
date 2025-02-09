@@ -36,6 +36,15 @@ URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
 
 
 ###
+
+
+def initialize_url_log():
+    """Create the URL action log file if it does not exist."""
+    if not os.path.exists(URL_LOG_FILE_JSON):
+        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
+            json.dump([], f, indent=4)
+
+
 def log_url_action_json(url, action, agent_type='BrowsingAgent'):
     """Append URL, action, and timestamp to a separate JSON log file."""
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -45,12 +54,7 @@ def log_url_action_json(url, action, agent_type='BrowsingAgent'):
         'action': action,
         'agent_type': agent_type,
     }
-
-    # If file doesn't exist, create it with an empty list
-    if not os.path.exists(URL_LOG_FILE_JSON):
-        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump([], f, indent=4)
-
+    initialize_url_log()
     with open(URL_LOG_FILE_JSON, 'r+', encoding='utf-8') as f:
         try:
             logs = json.load(f)
@@ -211,6 +215,8 @@ class BrowsingAgent(Agent):
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
                 # agent has responded, task finished.
                 ###
+                final_answer = event.content if event.content else ''
+                self.metrics_tracker.set_final_answer(final_answer)
                 logger.info('Final Metrics Summary:')
                 logger.info(self.llm.metrics.log())
                 # Save final metrics when finishing the task
@@ -234,10 +240,22 @@ class BrowsingAgent(Agent):
 
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
+                # Ensure the error is logged before stopping
+                cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
+                last_action_str = (
+                    last_obs.last_browser_action
+                    if hasattr(last_obs, 'last_browser_action')
+                    else 'unknown'
+                )
+
+                log_url_action_json(url=cur_url_str, action=last_action_str)
+                self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs.last_browser_action)
                 self.error_accumulator += 1
                 if self.error_accumulator > 5:
+                    self.metrics_tracker.save_metrics()  # ensure metrics are saved even if task failed
                     return MessageAction('Too many errors encountered. Task failed.')
             ###
 
@@ -279,6 +297,9 @@ class BrowsingAgent(Agent):
 
         if goal is None:
             goal = state.inputs['task']
+        # Store the query in metrics (only on first step)
+        if self.metrics_tracker.query is None:
+            self.metrics_tracker.set_query(goal)
 
         system_msg = get_system_message(
             goal,

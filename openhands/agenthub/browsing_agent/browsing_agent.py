@@ -36,29 +36,29 @@ URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
 
 
 ###
-def log_url_action_json(url, action):
+def log_url_action_json(url, action, agent_type='BrowsingAgent'):
     """Append URL, action, and timestamp to a separate JSON log file."""
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    entry = {'timestamp': timestamp, 'url': url, 'action': action}
+    log_entry = {
+        'timestamp': timestamp,
+        'url': url,
+        'action': action,
+        'agent_type': agent_type,
+    }
 
-    try:
-        # Read existing log and append new entry
-        if os.path.exists(URL_LOG_FILE_JSON):
-            with open(URL_LOG_FILE_JSON, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        else:
-            data = []
-
-        data.append(entry)
-
-        # Save updated log
+    # If file doesn't exist, create it with an empty list
+    if not os.path.exists(URL_LOG_FILE_JSON):
         with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
+            json.dump([], f, indent=4)
 
-    except json.JSONDecodeError:
-        # If the file is corrupted or empty, start fresh
-        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump([entry], f, indent=4)
+    with open(URL_LOG_FILE_JSON, 'r+', encoding='utf-8') as f:
+        try:
+            logs = json.load(f)
+        except json.JSONDecodeError:
+            logs = []
+        logs.append(log_entry)
+        f.seek(0)
+        json.dump(logs, f, indent=4)
 
 
 ###
@@ -240,15 +240,16 @@ class BrowsingAgent(Agent):
                 if self.error_accumulator > 5:
                     return MessageAction('Too many errors encountered. Task failed.')
             ###
-            cur_url_str = last_obs.url if hasattr(last_obs, 'url') else None
+
+            cur_url_str = last_obs.url if hasattr(last_obs, 'url') else ''
             last_action_str = (
                 last_obs.last_browser_action
                 if hasattr(last_obs, 'last_browser_action')
-                else None
+                else ''
             )
 
             # Log to the separate file
-            log_url_action_json(cur_url_str, last_action_str)
+            log_url_action_json(url=cur_url_str, action=last_action_str)
             ###
             try:
                 cur_axtree_txt = flatten_axtree_to_str(
@@ -261,7 +262,8 @@ class BrowsingAgent(Agent):
                 # Save the AXTree representation to a file
                 timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M-%f')[:-3]
                 filename = os.path.join(
-                    WEB_DOCU_FOLDER, f'{timestamp_web}_page_{len(state.history)}.html'
+                    WEB_DOCU_FOLDER,
+                    f'{timestamp_web}_page_{(len(state.history)-1)//2}.html',
                 )
                 with open(filename, 'w', encoding='utf-8') as f:
                     f.write(cur_axtree_txt)

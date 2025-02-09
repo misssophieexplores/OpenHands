@@ -4,6 +4,9 @@ import os
 
 ###
 import time
+
+###
+import urllib.request
 from datetime import datetime
 
 from browsergym.core.action.highlevel import HighLevelActionSet
@@ -34,33 +37,33 @@ from openhands.runtime.plugins import (
 EXPERIMENT_FOLDER = get_experiment_folder()
 WEB_DOCU_FOLDER = get_web_docu_folder()
 URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
+
 ###
 
 
 ###
-def log_url_action_json(url, action):
+def log_url_action_json(url, action, agent_type='VisualBrowsingAgent'):
     """Append URL, action, and timestamp to a separate JSON log file."""
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    entry = {'timestamp': timestamp, 'url': url, 'action': action}
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    try:
-        # Read existing log and append new entry
-        if os.path.exists(URL_LOG_FILE_JSON):
-            with open(URL_LOG_FILE_JSON, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        else:
-            data = []
-
-        data.append(entry)
-
-        # Save updated log
+    log_entry = {
+        'timestamp': timestamp,
+        'url': url,
+        'action': action,
+        'agent_type': agent_type,
+    }
+    # Append to JSON log file
+    if not os.path.exists(URL_LOG_FILE_JSON):
         with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-
-    except json.JSONDecodeError:
-        # If the file is corrupted or empty, start fresh
-        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump([entry], f, indent=4)
+            json.dump([log_entry], f, indent=4)
+    with open(URL_LOG_FILE_JSON, 'r+', encoding='utf-8') as f:
+        try:
+            logs = json.load(f)
+        except json.JSONDecodeError:
+            logs = []
+        logs.append(log_entry)
+        f.seek(0)
+        json.dump(logs, f, indent=4)
 
 
 ###
@@ -107,6 +110,7 @@ def create_observation_prompt(
     if (som_screenshot is not None) and (len(som_screenshot) > 0):
         txt_observation += 'Image: Current page screenshot (Note that only visible portion of webpage is present in the screenshot. You may need to scroll to view the remaining portion of the web-page.\n'
         screenshot_url = som_screenshot
+
     else:
         logger.info('SOM Screenshot not present in observation!')
     txt_observation += '\n'
@@ -303,16 +307,16 @@ Note:
                 )
             tabs = get_tabs(last_obs)
             ###
-            cur_url_str = last_obs.url if hasattr(last_obs, 'url') else None
+            cur_url_str = last_obs.url if hasattr(last_obs, 'url') else ''
 
             last_action_str = (
                 last_obs.last_browser_action
                 if hasattr(last_obs, 'last_browser_action')
-                else None
+                else ''
             )
 
             # Log to the separate file
-            log_url_action_json(cur_url_str, last_action_str)
+            log_url_action_json(url=cur_url_str, action=last_action_str)
             ###
             try:
                 # IMPORTANT: keep AX Tree of full webpage, add visible and clickable tags
@@ -348,9 +352,9 @@ Note:
             timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
             screenshot_filename = os.path.join(
                 WEB_DOCU_FOLDER,
-                f'{timestamp_som}_screenshot_{len(state.history)}.png',
-            )
-            import urllib.request
+                f'{timestamp_som}_screenshot_{(len(state.history)-1)//2}.png',
+            )  # save screenshot with timestamp
+            self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
 
             try:
                 urllib.request.urlretrieve(som_screenshot, screenshot_filename)
@@ -363,7 +367,7 @@ Note:
         # Save the webpage structure (AXTree) and interaction history
         timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
         content_filename = os.path.join(
-            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{len(state.history)}.txt'
+            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{(len(state.history)-1)//2}.txt'
         )
         with open(content_filename, 'w', encoding='utf-8') as f:
             f.write('==== PAGE URL ====\n')

@@ -2,7 +2,6 @@ import json
 import os
 import statistics
 import time
-from datetime import datetime
 
 from openhands.core.logger import get_experiment_folder
 from openhands.core.logger import openhands_logger as logger
@@ -17,6 +16,7 @@ class MetricsTracker:
         self.input_tokens = 0
         self.output_tokens = 0
         self.model_name = model_name
+        self.screenshots = 0
 
     def record_step(self, step_start_time, input_tokens, output_tokens):
         step_duration = time.time() - step_start_time
@@ -24,7 +24,11 @@ class MetricsTracker:
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
 
-    def save_metrics(self, log_folder=log_folder):
+    def increment_screenshot_count(self):
+        """Increments the screenshot count."""
+        self.screenshots += 1
+
+    def save_metrics(self):
         end_time = time.time()
         full_runtime = end_time - self.start_time
         total_tokens = self.input_tokens + self.output_tokens
@@ -35,8 +39,14 @@ class MetricsTracker:
         mean_latency = statistics.mean(self.step_times) if self.step_times else 0
         median_latency = statistics.median(self.step_times) if self.step_times else 0
 
+        # Extract timestamp from log folder name
+        folder_name = os.path.basename(log_folder)
+        timestamp = folder_name.replace('openhands_', '')  # Correctly extract timestamp
+
         # Construct final metrics dict
         metrics = {
+            'timestamp': timestamp,
+            'folder_name': log_folder,
             'full_runtime': full_runtime,
             'shortest_time_difference': min_latency,
             'longest_time_difference': max_latency,
@@ -46,10 +56,10 @@ class MetricsTracker:
             'output_tokens': self.output_tokens,
             'total_tokens': total_tokens,
             'model_name': self.model_name,
+            'screenshots': self.screenshots,
         }
 
         # Save JSON file with naming convention
-        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
         filename = f'{timestamp}_metrics.json'
         filepath = os.path.join(log_folder, filename)
         os.makedirs(log_folder, exist_ok=True)

@@ -250,6 +250,7 @@ class BrowsingAgent(Agent):
 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
+            self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
             ###
             try:
                 cur_axtree_txt = flatten_axtree_to_str(

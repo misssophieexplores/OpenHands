@@ -289,6 +289,8 @@ class BrowsingAgent(Agent):
         prompt = get_prompt(error_prefix, cur_url, cur_axtree_txt, prev_action_str)
         messages.append(Message(role='user', content=[TextContent(text=prompt)]))
 
+        self.metrics_tracker.increment_model_calls()  # Increment model call count
+
         response = self.llm.completion(
             messages=self.llm.format_messages_for_llm(messages),
             stop=[')```', ')\n```'],

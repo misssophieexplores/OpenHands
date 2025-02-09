@@ -404,6 +404,7 @@ You are an agent trying to solve a web task based on the content of the page and
 
         flat_messages = self.llm.format_messages_for_llm(messages)
 
+        self.metrics_tracker.increment_model_calls()  # increment model call count
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,

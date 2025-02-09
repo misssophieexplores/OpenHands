@@ -17,6 +17,7 @@ class MetricsTracker:
         self.output_tokens = 0
         self.model_name = model_name
         self.screenshots = 0
+        self.model_calls = 0
 
     def record_step(self, step_start_time, input_tokens, output_tokens):
         step_duration = time.time() - step_start_time
@@ -27,6 +28,10 @@ class MetricsTracker:
     def increment_screenshot_count(self):
         """Increments the screenshot count."""
         self.screenshots += 1
+
+    def increment_model_calls(self):
+        """Increments the model call count."""
+        self.model_calls += 1
 
     def save_metrics(self):
         end_time = time.time()
@@ -57,6 +62,7 @@ class MetricsTracker:
             'total_tokens': total_tokens,
             'model_name': self.model_name,
             'screenshots': self.screenshots,
+            'model_calls': self.model_calls,
         }
 
         # Save JSON file with naming convention

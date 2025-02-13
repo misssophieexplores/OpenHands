@@ -189,7 +189,9 @@ class VisualBrowsingAgent(Agent):
         super().__init__(llm, config)
         ###
         self.page_counter = 0
-        self.metrics_tracker = MetricsTracker(model_name=llm.config.model)
+        self.metrics_tracker = MetricsTracker(
+            model_name=llm.config.model, agent_name='openhands_visual_browsing_agent'
+        )
         ###
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
         # see https://github.com/ServiceNow/BrowserGym/blob/main/core/src/browsergym/core/action/highlevel.py for more details
@@ -278,9 +280,7 @@ Note:
                 logger.info('Final Metrics Summary:')
                 logger.info(self.llm.metrics.log())
                 # Save final metrics when finishing the task
-                self.metrics_tracker.save_metrics(
-                    agent_name='openhands_visual_browsing_agent'
-                )
+                self.metrics_tracker.save_metrics()
                 ###
                 return AgentFinishAction(outputs={'content': event.content})
             elif isinstance(event, Observation):
@@ -319,9 +319,7 @@ Note:
                 if len(error_prefix) > 0:
                     self.error_accumulator += 1
                     if self.error_accumulator > 10:
-                        self.metrics_tracker.save_metrics(
-                            agent_name='openhands_visual_browsing_agent'
-                        )
+                        self.metrics_tracker.save_metrics()
                         return MessageAction(
                             'Too many errors encountered. Task failed.'
                         )

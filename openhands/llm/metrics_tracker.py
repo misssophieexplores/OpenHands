@@ -15,13 +15,13 @@ log_folder = get_experiment_folder()
 
 
 class MetricsTracker:
-    def __init__(self, model_name='gpt-4o'):
+    def __init__(self, model_name='gpt-4o', agent_name='openhands'):
         self.start_time = time.time()
         self.step_times = []
         self.input_tokens = 0
         self.output_tokens = 0
         self.model_name = model_name
-        self.agent_name: str | None = None
+        self.agent_name: str = agent_name
         self.screenshots = 0
         self.model_calls = 0
         self.visited_urls = {}
@@ -58,10 +58,15 @@ class MetricsTracker:
         """Increments the model call count."""
         self.model_calls += 1
 
-    def extract_action(self, action_type: str) -> str:
-        """Extracts the action name from the given action_type string."""
-        match = re.match(r'(\w+)\(', action_type)
-        return match.group(1) if match else action_type
+    def extract_actions(self, action_type: str | None) -> list[str]:
+        """Extracts all action names from a multi-action string.
+
+        Returns:
+            list[str]: A list of extracted action names (e.g., ["click", "select_option"]).
+        """
+        if not action_type:  # Ensure it's not None or empty
+            return []
+        return re.findall(r'(\w+)\(', action_type)
 
     def track_visited_url(self, url: str, action_type: str):
         """Track visited URLs and count occurrences, ignoring None values."""
@@ -78,11 +83,10 @@ class MetricsTracker:
         self.visited_urls[url]['visits'] += 1
 
         # Increment action count
-        actions_only = self.extract_action(action_type)
+        actions_only = self.extract_actions(action_type) or []
         for action in actions_only:
             if action:
-                if action not in self.visited_urls[url]['actions']:
-                    self.visited_urls[url]['actions'][action] = 0
+                self.visited_urls[url]['actions'].setdefault(action, 0)
                 self.visited_urls[url]['actions'][action] += 1
 
     def count_unique_websites(self) -> Dict[str, int]:
@@ -104,7 +108,7 @@ class MetricsTracker:
         parsed_url = urlparse(url)
         return parsed_url.netloc.split(':')[0]  # Removes any port if present
 
-    def save_metrics(self, agent_name='openhands'):
+    def save_metrics(self):
         end_time = time.time()
         full_runtime = end_time - self.start_time
         total_tokens = self.input_tokens + self.output_tokens

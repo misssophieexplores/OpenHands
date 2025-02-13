@@ -1,6 +1,7 @@
 import atexit
 import json
 import os
+import re
 import statistics
 import time
 from collections import defaultdict
@@ -14,18 +15,20 @@ log_folder = get_experiment_folder()
 
 
 class MetricsTracker:
-    def __init__(self, model_name='web_voyager'):
+    def __init__(self, model_name='gpt-4o'):
         self.start_time = time.time()
         self.step_times = []
         self.input_tokens = 0
         self.output_tokens = 0
         self.model_name = model_name
+        self.agent_name: str | None = None
         self.screenshots = 0
         self.model_calls = 0
         self.visited_urls = {}
         self.domain_counts = {}
         self.query: str | None = None
         self.final_answer: str | None = None
+        self.errors = 0
         atexit.register(self.save_metrics)  # Automatically save at program exit
 
     def set_query(self, query: str):
@@ -36,6 +39,10 @@ class MetricsTracker:
     def set_final_answer(self, answer: str):
         """Sets the final answer."""
         self.final_answer = answer
+
+    def increment_error_count(self):
+        """Increments the error count."""
+        self.errors += 1
 
     def record_step(self, step_start_time, input_tokens, output_tokens):
         step_duration = time.time() - step_start_time
@@ -50,6 +57,11 @@ class MetricsTracker:
     def increment_model_calls(self):
         """Increments the model call count."""
         self.model_calls += 1
+
+    def extract_action(self, action_type: str) -> str:
+        """Extracts the action name from the given action_type string."""
+        match = re.match(r'(\w+)\(', action_type)
+        return match.group(1) if match else action_type
 
     def track_visited_url(self, url: str, action_type: str):
         """Track visited URLs and count occurrences, ignoring None values."""
@@ -66,10 +78,12 @@ class MetricsTracker:
         self.visited_urls[url]['visits'] += 1
 
         # Increment action count
-        if action_type:
-            if action_type not in self.visited_urls[url]['actions']:
-                self.visited_urls[url]['actions'][action_type] = 0
-            self.visited_urls[url]['actions'][action_type] += 1
+        actions_only = self.extract_action(action_type)
+        for action in actions_only:
+            if action:
+                if action not in self.visited_urls[url]['actions']:
+                    self.visited_urls[url]['actions'][action] = 0
+                self.visited_urls[url]['actions'][action] += 1
 
     def count_unique_websites(self) -> Dict[str, int]:
         """Count unique domains from visited URLs."""
@@ -90,7 +104,7 @@ class MetricsTracker:
         parsed_url = urlparse(url)
         return parsed_url.netloc.split(':')[0]  # Removes any port if present
 
-    def save_metrics(self):
+    def save_metrics(self, agent_name='openhands'):
         end_time = time.time()
         full_runtime = end_time - self.start_time
         total_tokens = self.input_tokens + self.output_tokens
@@ -111,8 +125,9 @@ class MetricsTracker:
         # Construct final metrics dict
         metrics = {
             'timestamp': timestamp,
-            'folder_name': log_folder,
+            'agent_name': self.agent_name,
             'query': self.query,
+            'folder_name': log_folder,
             'full_runtime': full_runtime,
             'start_url': None,
             'final_answer': self.final_answer,
@@ -120,6 +135,8 @@ class MetricsTracker:
             'longest_time_difference': max_latency,
             'mean_time_difference': mean_latency,
             'median_time_difference': median_latency,
+            'number_of_timestamps': len(self.step_times),
+            'errors': self.errors,
             'input_tokens': self.input_tokens,
             'output_tokens': self.output_tokens,
             'total_tokens': total_tokens,

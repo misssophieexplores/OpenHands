@@ -42,7 +42,7 @@ def initialize_url_log():
     """Create the URL action log file if it does not exist."""
     if not os.path.exists(URL_LOG_FILE_JSON):
         with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump([], f, indent=4)
+            json.dump([], f, indent=4, ensure_ascii=False)
 
 
 def log_url_action_json(url, action, agent_type='BrowsingAgent'):
@@ -62,7 +62,7 @@ def log_url_action_json(url, action, agent_type='BrowsingAgent'):
             logs = []
         logs.append(log_entry)
         f.seek(0)
-        json.dump(logs, f, indent=4)
+        json.dump(logs, f, indent=4, ensure_ascii=False)
 
 
 ###
@@ -156,6 +156,7 @@ class BrowsingAgent(Agent):
         """
         super().__init__(llm, config)
         ###
+        self.page_counter = 0
         self.metrics_tracker = MetricsTracker(model_name=llm.config.model)
         ###
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
@@ -220,7 +221,7 @@ class BrowsingAgent(Agent):
                 logger.info('Final Metrics Summary:')
                 logger.info(self.llm.metrics.log())
                 # Save final metrics when finishing the task
-                self.metrics_tracker.save_metrics()
+                self.metrics_tracker.save_metrics(agent_name='openhands_browsing_agent')
                 ###
                 return AgentFinishAction(outputs={'content': event.content})
             elif isinstance(event, Observation):
@@ -240,6 +241,7 @@ class BrowsingAgent(Agent):
 
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
+                self.metrics_tracker.increment_error_count()
                 # Ensure the error is logged before stopping
                 cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
                 last_action_str = (
@@ -254,8 +256,10 @@ class BrowsingAgent(Agent):
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs.last_browser_action)
                 self.error_accumulator += 1
-                if self.error_accumulator > 5:
-                    self.metrics_tracker.save_metrics()  # ensure metrics are saved even if task failed
+                if self.error_accumulator > 10:
+                    self.metrics_tracker.save_metrics(
+                        agent_name='openhands_browsing_agent'
+                    )  # ensure metrics are saved even if task failed
                     return MessageAction('Too many errors encountered. Task failed.')
             ###
 
@@ -282,10 +286,20 @@ class BrowsingAgent(Agent):
                 timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M-%f')[:-3]
                 filename = os.path.join(
                     WEB_DOCU_FOLDER,
-                    f'{timestamp_web}_page_{(len(state.history)-1)//2}.html',
+                    f'{timestamp_web}_page_{self.page_counter}.html',
                 )
                 with open(filename, 'w', encoding='utf-8') as f:
                     f.write(cur_axtree_txt)
+
+                # Save the full raw AXTree as JSON
+                filename_json = os.path.join(
+                    WEB_DOCU_FOLDER,
+                    f'{timestamp_web}_page_{self.page_counter}.json',
+                )
+                with open(filename_json, 'w', encoding='utf-8') as f:
+                    json.dump(last_obs.axtree_object, f, indent=4, ensure_ascii=False)
+
+                self.page_counter += 1
             ###
             except Exception as e:
                 logger.error(

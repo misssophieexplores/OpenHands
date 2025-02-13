@@ -37,7 +37,6 @@ from openhands.runtime.plugins import (
 EXPERIMENT_FOLDER = get_experiment_folder()
 WEB_DOCU_FOLDER = get_web_docu_folder()
 URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
-
 ###
 
 
@@ -46,7 +45,7 @@ def initialize_url_log():
     """Create the URL action log file if it does not exist."""
     if not os.path.exists(URL_LOG_FILE_JSON):
         with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
-            json.dump([], f, indent=4)
+            json.dump([], f, indent=4, ensure_ascii=False)
 
 
 def log_url_action_json(url, action, agent_type='VisualBrowsingAgent'):
@@ -67,7 +66,7 @@ def log_url_action_json(url, action, agent_type='VisualBrowsingAgent'):
             logs = []
         logs.append(log_entry)
         f.seek(0)
-        json.dump(logs, f, indent=4)
+        json.dump(logs, f, indent=4, ensure_ascii=False)
 
 
 ###
@@ -189,6 +188,7 @@ class VisualBrowsingAgent(Agent):
         """
         super().__init__(llm, config)
         ###
+        self.page_counter = 0
         self.metrics_tracker = MetricsTracker(model_name=llm.config.model)
         ###
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
@@ -278,7 +278,9 @@ Note:
                 logger.info('Final Metrics Summary:')
                 logger.info(self.llm.metrics.log())
                 # Save final metrics when finishing the task
-                self.metrics_tracker.save_metrics()
+                self.metrics_tracker.save_metrics(
+                    agent_name='openhands_visual_browsing_agent'
+                )
                 ###
                 return AgentFinishAction(outputs={'content': event.content})
             elif isinstance(event, Observation):
@@ -298,6 +300,7 @@ Note:
         history_prompt = get_history_prompt(prev_actions)
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
+                self.metrics_tracker.increment_error_count()
                 # Ensure the error is logged before stopping
                 cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
                 last_action_str = (
@@ -315,7 +318,10 @@ Note:
                 error_prefix = get_error_prefix(last_obs)
                 if len(error_prefix) > 0:
                     self.error_accumulator += 1
-                    if self.error_accumulator > 5:
+                    if self.error_accumulator > 10:
+                        self.metrics_tracker.save_metrics(
+                            agent_name='openhands_visual_browsing_agent'
+                        )
                         return MessageAction(
                             'Too many errors encountered. Task failed.'
                         )
@@ -362,6 +368,9 @@ Note:
 
         if goal is None:
             goal = state.inputs['task']
+        # Store the query in metrics (only on first step)
+        if self.metrics_tracker.query is None:
+            self.metrics_tracker.set_query(goal)
         goal_txt, goal_images = create_goal_prompt(goal, image_urls)
         observation_txt, som_screenshot = create_observation_prompt(
             cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
@@ -372,7 +381,7 @@ Note:
             timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
             screenshot_filename = os.path.join(
                 WEB_DOCU_FOLDER,
-                f'{timestamp_som}_screenshot_{(len(state.history)-1)//2}.png',
+                f'{timestamp_som}_screenshot_{self.page_counter}.png',
             )  # save screenshot with timestamp
             self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
 
@@ -387,7 +396,7 @@ Note:
         # Save the webpage structure (AXTree) and interaction history
         timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
         content_filename = os.path.join(
-            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{(len(state.history)-1)//2}.txt'
+            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{self.page_counter}.txt'
         )
         with open(content_filename, 'w', encoding='utf-8') as f:
             f.write('==== PAGE URL ====\n')
@@ -399,6 +408,7 @@ Note:
             f.write(cur_axtree_txt + '\n\n')
             # f.write("==== PREVIOUS ACTIONS ====\n")
             # f.write(history_prompt + "\n")
+        self.page_counter += 1
         ###
         human_prompt = [TextContent(type='text', text=goal_txt)]
         if len(goal_images) > 0:

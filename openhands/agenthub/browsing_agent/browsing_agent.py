@@ -158,7 +158,7 @@ class BrowsingAgent(Agent):
         ###
         self.page_counter = 0
         self.metrics_tracker = MetricsTracker(
-            model_name=llm.config.model, agent_name='openhands_visual_browsing_agent'
+            model_name=llm.config.model, agent_name='openhands_browsing_agent'
         )
         ###
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.

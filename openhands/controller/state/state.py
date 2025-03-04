@@ -2,7 +2,7 @@ import base64
 import pickle
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List
 
 from openhands.controller.state.task import RootTask
 from openhands.core.logger import openhands_logger as logger
@@ -65,6 +65,13 @@ class State:
       - global metrics for the current task
       - local metrics for the current subtask
 
+    - Interim Memory:
+      - Shared memory for storing partial results relevant to the final answer
+      - Accessible by all agents involved in a task
+      - Supports flexible data structures (list of dictionaries)
+      - Allows updating stored entities dynamically
+      - Resets when the task completes
+
     - Extra data:
       - additional task-specific data
     """
@@ -80,6 +87,8 @@ class State:
     history: list[Event] = field(default_factory=list)
     inputs: dict = field(default_factory=dict)
     outputs: dict = field(default_factory=dict)
+    # Shared interim memory across all agents in the task
+    interim_memory: List[Dict[str, Any]] = field(default_factory=list)
     agent_state: AgentState = AgentState.LOADING
     resume_state: AgentState | None = None
     traffic_control_state: TrafficControlState = TrafficControlState.NORMAL
@@ -169,3 +178,22 @@ class State:
             if isinstance(event, MessageAction) and event.source == EventSource.USER:
                 return event
         return None
+
+    def store_interim_result(self, entry: Dict[str, Any]):
+        """Stores a new interim result (as an object) in memory."""
+        self.interim_memory.append(entry)
+
+    def update_interim_result(self, entry_id: int, key: str, value: Any):
+        """Updates an existing entry in interim memory."""
+        for entry in self.interim_memory:
+            if entry.get('id') == entry_id:
+                entry[key] = value
+                return
+
+    def retrieve_interim_results(self) -> List[Dict[str, Any]]:
+        """Retrieves all stored interim results."""
+        return self.interim_memory
+
+    def clear_interim_memory(self):
+        """Clears all interim memory after task completion."""
+        self.interim_memory.clear()

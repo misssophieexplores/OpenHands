@@ -156,7 +156,7 @@ class BrowsingAgent(Agent):
         """
         super().__init__(llm, config)
         ###
-        self.page_counter = 0
+        self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
             model_name=llm.config.model, agent_name='openhands_browsing_agent'
         )

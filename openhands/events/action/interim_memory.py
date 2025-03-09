@@ -22,10 +22,13 @@ class InterimMemoryAction(BrowseInteractiveAction):
     def message(self) -> str:
         """Formats the message based on the action type."""
         if self.browser_actions == 'store_interim_memory':
+            logger.info(f"[INTERIM MEMORY interim_memory.py] Storing key='{self.key}' with value='{self.value}'")
             return f"I stored the key '{self.key}' with value '{self.value}' in interim memory."
         elif self.browser_actions == 'update_interim_memory':
+            logger.info(f"[[INTERIM MEMORY interim_memory.py] Updating key='{self.key}' to new value='{self.value}'")
             return f"I updated the key '{self.key}' to new value '{self.value}' in interim memory."
         elif self.browser_actions == 'retrieve_interim_memory':
+            logger.info(f"[INTERIM MEMORY interim_memory.py] Retrieving key='{self.key}' from interim memory")
             return f"I retrieved the key '{self.key}' from interim memory."
         return 'Invalid interim memory action.'
 
@@ -36,7 +39,7 @@ class InterimMemoryAction(BrowseInteractiveAction):
             ret += f'THOUGHT: {self.thought}\n'
         ret += f'INTERIM_MEMORY_ACTION: {self.browser_actions}'
         if self.key is not None:
-            ret += '\nKEY: {self.key}\n'
+            ret += f'\nKEY: {self.key}\n'
         if self.value is not None:
             ret += f'VALUE: {self.value}\n'
         return ret
@@ -49,17 +52,14 @@ class InterimMemoryAction(BrowseInteractiveAction):
 
 def store_interim_memory(key: str, value: Any) -> InterimMemoryAction:
     """Stores a key-value pair in interim memory."""
-    logger.info(f"[INTERIM MEMORY] Storing key='{key}' with value='{value}'")
     return InterimMemoryAction(browser_actions='store', key=key, value=value)
 
 
 def update_interim_memory(key: str, value: Any) -> InterimMemoryAction:
     """Updates an existing key-value pair in interim memory."""
-    logger.info(f"[INTERIM MEMORY] Updating key='{key}' to new value='{value}'")
     return InterimMemoryAction(browser_actions='update', key=key, value=value)
 
 
 def retrieve_interim_memory(key: str) -> InterimMemoryAction:
     """Retrieves a stored value from interim memory."""
-    logger.info(f"[INTERIM MEMORY] Retrieving key='{key}' from interim memory")
     return InterimMemoryAction(browser_actions='retrieve', key=key)

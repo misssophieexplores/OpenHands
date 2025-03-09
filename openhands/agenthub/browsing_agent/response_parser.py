@@ -76,7 +76,7 @@ class BrowsingActionParserInterimMemory(ActionParser):
         )
 
         logger.info(
-            f'[PARSER] Checking condition for action: {repr(cleaned_action_str)} -> Match: {is_interim}'
+            f'[INTERIM MEMORY PARSER] Checking condition for action: {repr(cleaned_action_str)} -> Match: {is_interim}'
         )
 
         return is_interim
@@ -89,30 +89,37 @@ class BrowsingActionParserInterimMemory(ActionParser):
             if len(parts) > 1 and parts[1].strip()
             else parts[0].strip()
         )
-        thought = parts[0].strip() if len(parts) > 1 else ''
+        thought = parts[0].strip() if parts[1].strip() != '' else ''
 
         # Match action type and parameters
         match = re.match(
-            r'(store_interim_memory|update_interim_memory|retrieve_interim_memory)\((.*?)\)',
+            r'(store_interim_memory|update_interim_memory|retrieve_interim_memory)(?:\((.*?)\))?',
             memory_action_str,
         )
+
         if not match:
             logger.error(
                 f'[INTERIM MEMORY] Failed to parse action: {memory_action_str}'
             )
             return BrowseInteractiveAction(
-                browser_actions=f'INVALID ACTION: {memory_action_str}'
+                browser_actions=f'[INTERIM MEMORY] INVALID ACTION: {memory_action_str}'
             )
 
         action_type, params = match.groups()
 
-        # Parse parameters safely
+        # Explicitly handle `retrieve_interim_memory`
+        if action_type == "retrieve_interim_memory":
+            key = params.strip("'") if params else None  # If there's a key, strip quotes
+            return InterimMemoryAction(browser_actions=action_type, key=key, value=None, thought=thought)
+
+        # ✅ Fix: Check if `params` exist before evaluating
+        if not params:
+            logger.error(f"[INTERIM MEMORY] Expected parameters for {action_type}, but got None.")
+            return BrowseInteractiveAction(browser_actions=f"INVALID ACTION: {memory_action_str}")
+
+        # ✅ Fix: Handle dict values properly
         try:
-            args = (
-                ast.literal_eval(f'({params})')
-                if ',' in params
-                else (ast.literal_eval(params),)
-            )
+            args = ast.literal_eval(f'({params})') if ',' in params else (ast.literal_eval(params),)
         except Exception as eval_error:
             logger.error(
                 f'[INTERIM MEMORY] Error evaluating parameters: {params}. Error: {eval_error}'
@@ -121,11 +128,14 @@ class BrowsingActionParserInterimMemory(ActionParser):
                 browser_actions=f'INVALID ACTION: {memory_action_str}'
             )
 
-        # Extract key, value (if applicable)
+        # ✅ Fix: Extract key-value properly
         key = args[0]
         value = args[1] if len(args) > 1 else None
 
-        # Extract user message (if any)
+        # ✅ Logging for debugging
+        logger.info(f"[INTERIM MEMORY PARSER] Parsed action: {action_type} | Key: {key} | Value: {value}")
+
+        # ✅ Extract user message (if any)
         msg_content = ''
         for sub_action in memory_action_str.split('\n'):
             if 'send_msg_to_user(' in sub_action:
@@ -145,8 +155,6 @@ class BrowsingActionParserInterimMemory(ActionParser):
             thought=thought,
             browsergym_send_msg_to_user=msg_content,
         )
-
-
 class BrowsingActionParserMessage(ActionParser):
     """Parser action:
     - BrowseInteractiveAction(browser_actions) - unexpected response format, message back to user

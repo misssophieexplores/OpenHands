@@ -11,6 +11,7 @@ from openhands.events.action import (
     MessageAction,
 )
 from openhands.events.action.agent import AgentFinishAction
+from openhands.events.action.interim_memory import InterimMemoryAction
 from openhands.events.event import Event, EventSource
 from openhands.llm.metrics import Metrics
 from openhands.storage.files import FileStore
@@ -100,6 +101,54 @@ class State:
     # evaluation tasks to store extra data needed to track the progress/state of the task.
     extra_data: dict[str, Any] = field(default_factory=dict)
     last_error: str = ''
+    # Interim memory for storing intermediate results
+    interim_memory: dict[str, Any] = field(default_factory=dict)
+
+    def reset_memory(self):
+        """Resets interim memory when starting a new run."""
+        self.interim_memory.clear()
+        logger.debug('Interim memory has been reset.')
+
+    def handle_interim_memory_action(self, action: InterimMemoryAction) -> Any:
+        """Processes interim memory actions: store, update, and retrieve."""
+
+        if action.browser_actions == 'store_interim_memory':
+            self.interim_memory[action.key] = action.value
+            logger.info(
+                f'[STATE INTERIM MEMORY] Stored: {action.key} -> {action.value}'
+            )
+            return f"Stored key '{action.key}' successfully."
+
+        elif action.browser_actions == 'update_interim_memory':
+            if action.key in self.interim_memory:
+                self.interim_memory[action.key] = action.value
+                logger.info(
+                    f'[STATE INTERIM MEMORY] Updated: {action.key} -> {action.value}'
+                )
+                return f"Updated key '{action.key}' successfully."
+            else:
+                logger.warning(
+                    f'[STATE INTERIM MEMORY] Update failed - key not found: {action.key}'
+                )
+                return f"Key '{action.key}' not found in interim memory."
+
+        elif action.browser_actions == 'retrieve_interim_memory':
+            if action.key:
+                result = self.interim_memory.get(action.key, None)
+                logger.info(
+                    f'[STATE INTERIM MEMORY] Retrieved: {action.key} -> {result}'
+                )
+                return (
+                    result if result is not None else f"Key '{action.key}' not found."
+                )
+            logger.info('[STATE INTERIM MEMORY] Retrieved all stored keys.')
+            return self.interim_memory
+
+        else:
+            logger.warning(
+                f'[STATE INTERIM MEMORY] Unknown action received: {action.browser_actions}'
+            )
+            return 'Invalid interim memory action.'
 
     def save_to_session(self, sid: str, file_store: FileStore):
         pickled = pickle.dumps(self)

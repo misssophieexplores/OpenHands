@@ -82,5 +82,9 @@ class ActionTypeSchema(BaseModel):
     SEND_PR: str = Field(default='send_pr')
     """Send a PR to github."""
 
+    INTERIM_MEMORY: str = Field(default='interim_memory')
+    """Stores, updates, or retrieves data from interim memory.
+    """
+
 
 ActionType = ActionTypeSchema()

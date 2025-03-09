@@ -71,7 +71,9 @@ class BrowsingActionParserInterimMemory(ActionParser):
         cleaned_action_str = interim_action_str.strip().strip('`')
 
         # Check if the cleaned action string matches our new unified interim memory format
-        is_interim = cleaned_action_str.startswith('InterimMemoryAction')
+        is_interim = cleaned_action_str.startswith(
+            ("store_interim_memory", "update_interim_memory", "retrieve_interim_memory")
+        )
 
         logger.info(
             f'[PARSER] Checking condition for action: {repr(cleaned_action_str)} -> Match: {is_interim}'

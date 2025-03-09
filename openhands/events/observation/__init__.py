@@ -4,6 +4,7 @@ from openhands.events.observation.agent import (
     AgentThinkObservation,
 )
 from openhands.events.observation.browse import BrowserOutputObservation
+from openhands.events.observation.interim_memory_observation import InterimMemoryObservation
 from openhands.events.observation.commands import (
     CmdOutputMetadata,
     CmdOutputObservation,
@@ -23,6 +24,7 @@ from openhands.events.observation.observation import Observation
 from openhands.events.observation.reject import UserRejectObservation
 from openhands.events.observation.success import SuccessObservation
 
+
 __all__ = [
     'Observation',
     'NullObservation',
@@ -40,4 +42,5 @@ __all__ = [
     'SuccessObservation',
     'UserRejectObservation',
     'AgentCondensationObservation',
+    'InterimMemoryObservation',
 ]

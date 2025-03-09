@@ -5,7 +5,6 @@ import urllib.request
 from datetime import datetime
 from openhands.events.action.highlevel_interim_memory import InterimMemoryActionSet
 from browsergym.utils.obs import flatten_axtree_to_str
-
 from openhands.agenthub.browsing_agent.response_parser import BrowsingResponseParser
 from openhands.controller.agent import Agent
 from openhands.controller.state.state import State
@@ -18,9 +17,10 @@ from openhands.events.action import (
     AgentFinishAction,
     BrowseInteractiveAction,
     MessageAction,
+    InterimMemoryAction
 )
 from openhands.events.event import EventSource
-from openhands.events.observation import BrowserOutputObservation
+from openhands.events.observation import BrowserOutputObservation, InterimMemoryObservation
 from openhands.events.observation.observation import Observation
 from openhands.llm.metrics_tracker import MetricsTracker
 from openhands.llm.llm import LLM
@@ -429,5 +429,14 @@ You are an agent trying to solve a web task based on the content of the page and
 
         # Record metrics before returning
         self.metrics_tracker.record_step(step_start_time, input_tokens, output_tokens)
+        # TODO: DEBUGGIN ONLY
+        action_str = self.response_parser.parse(response)
+        if isinstance(action_str, InterimMemoryAction):
+            result_observation = state.handle_interim_memory_action(action_str)
 
-        return self.response_parser.parse(response)
+            if isinstance(result_observation, InterimMemoryObservation):
+                logger.info(f"[DEBUG] Processing InterimMemoryObservation: {result_observation}")
+                return result_observation  # Ensures the agent reads and integrates the memory
+
+
+        return self.response_parser.parse(response) # TODO: FOLLOW UP ON THIS

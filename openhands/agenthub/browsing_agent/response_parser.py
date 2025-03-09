@@ -112,12 +112,12 @@ class BrowsingActionParserInterimMemory(ActionParser):
             key = params.strip("'") if params else None  # If there's a key, strip quotes
             return InterimMemoryAction(browser_actions=action_type, key=key, value=None, thought=thought)
 
-        # ✅ Fix: Check if `params` exist before evaluating
+        # Check if `params` exist before evaluating
         if not params:
             logger.error(f"[INTERIM MEMORY] Expected parameters for {action_type}, but got None.")
             return BrowseInteractiveAction(browser_actions=f"INVALID ACTION: {memory_action_str}")
 
-        # ✅ Fix: Handle dict values properly
+        # Handle dict values properly
         try:
             args = ast.literal_eval(f'({params})') if ',' in params else (ast.literal_eval(params),)
         except Exception as eval_error:
@@ -128,14 +128,14 @@ class BrowsingActionParserInterimMemory(ActionParser):
                 browser_actions=f'INVALID ACTION: {memory_action_str}'
             )
 
-        # ✅ Fix: Extract key-value properly
+        # Extract key-value
         key = args[0]
         value = args[1] if len(args) > 1 else None
 
-        # ✅ Logging for debugging
+        # Logging for debugging
         logger.info(f"[INTERIM MEMORY PARSER] Parsed action: {action_type} | Key: {key} | Value: {value}")
 
-        # ✅ Extract user message (if any)
+        # Extract user message (if any)
         msg_content = ''
         for sub_action in memory_action_str.split('\n'):
             if 'send_msg_to_user(' in sub_action:

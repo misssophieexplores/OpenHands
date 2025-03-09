@@ -1,4 +1,8 @@
+###
+import json
 import os
+import time
+from datetime import datetime
 
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.utils.obs import flatten_axtree_to_str
@@ -7,6 +11,7 @@ from openhands.agenthub.browsing_agent.response_parser import BrowsingResponsePa
 from openhands.controller.agent import Agent
 from openhands.controller.state.state import State
 from openhands.core.config import AgentConfig
+from openhands.core.logger import get_experiment_folder, get_web_docu_folder
 from openhands.core.logger import openhands_logger as logger
 from openhands.core.message import Message, TextContent
 from openhands.events.action import (
@@ -19,9 +24,48 @@ from openhands.events.event import EventSource
 from openhands.events.observation import BrowserOutputObservation
 from openhands.events.observation.observation import Observation
 from openhands.llm.llm import LLM
+from openhands.llm.metrics_tracker import MetricsTracker
 from openhands.runtime.plugins import (
     PluginRequirement,
 )
+
+EXPERIMENT_FOLDER = get_experiment_folder()
+WEB_DOCU_FOLDER = get_web_docu_folder()
+URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
+###
+
+
+###
+
+
+def initialize_url_log():
+    """Create the URL action log file if it does not exist."""
+    if not os.path.exists(URL_LOG_FILE_JSON):
+        with open(URL_LOG_FILE_JSON, 'w', encoding='utf-8') as f:
+            json.dump([], f, indent=4, ensure_ascii=False)
+
+
+def log_url_action_json(url, action, agent_type='BrowsingAgent'):
+    """Append URL, action, and timestamp to a separate JSON log file."""
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    log_entry = {
+        'timestamp': timestamp,
+        'url': url,
+        'action': action,
+        'agent_type': agent_type,
+    }
+    initialize_url_log()
+    with open(URL_LOG_FILE_JSON, 'r+', encoding='utf-8') as f:
+        try:
+            logs = json.load(f)
+        except json.JSONDecodeError:
+            logs = []
+        logs.append(log_entry)
+        f.seek(0)
+        json.dump(logs, f, indent=4, ensure_ascii=False)
+
+
+###
 
 USE_NAV = (
     os.environ.get('USE_NAV', 'true') == 'true'
@@ -111,6 +155,12 @@ class BrowsingAgent(Agent):
         - llm (LLM): The llm to be used by this agent
         """
         super().__init__(llm, config)
+        ###
+        self.page_counter = 1
+        self.metrics_tracker = MetricsTracker(
+            model_name=llm.config.model, agent_name='openhands_browsing_agent'
+        )
+        ###
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
         # see https://github.com/ServiceNow/BrowserGym/blob/main/core/src/browsergym/core/action/highlevel.py for more details
         action_subsets = ['chat', 'bid']
@@ -142,6 +192,11 @@ class BrowsingAgent(Agent):
         - MessageAction(content) - Message action to run (e.g. ask for clarification)
         - AgentFinishAction() - end the interaction
         """
+
+        ###
+        step_start_time = time.time()  # Start timing
+        input_tokens, output_tokens = 0, 0  # Default token values
+        ###
         messages: list[Message] = []
         prev_actions = []
         cur_url = ''
@@ -162,6 +217,14 @@ class BrowsingAgent(Agent):
                 last_action = event
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
                 # agent has responded, task finished.
+                ###
+                final_answer = event.content if event.content else ''
+                self.metrics_tracker.set_final_answer(final_answer)
+                logger.info('Final Metrics Summary:')
+                logger.info(self.llm.metrics.log())
+                # Save final metrics when finishing the task
+                self.metrics_tracker.save_metrics()
+                ###
                 return AgentFinishAction(outputs={'content': event.content})
             elif isinstance(event, Observation):
                 last_obs = event
@@ -180,14 +243,37 @@ class BrowsingAgent(Agent):
 
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
+                self.metrics_tracker.increment_error_count()
+                # Ensure the error is logged before stopping
+                cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
+                last_action_str = (
+                    last_obs.last_browser_action
+                    if hasattr(last_obs, 'last_browser_action')
+                    else 'unknown'
+                )
+
+                log_url_action_json(url=cur_url_str, action=last_action_str)
+                self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs.last_browser_action)
                 self.error_accumulator += 1
-                if self.error_accumulator > 5:
+                if self.error_accumulator > 10:
+                    self.metrics_tracker.save_metrics()  # ensure metrics are saved even if task failed
                     return MessageAction('Too many errors encountered. Task failed.')
+            ###
 
-            cur_url = last_obs.url
+            cur_url_str = last_obs.url if hasattr(last_obs, 'url') else ''
+            last_action_str = (
+                last_obs.last_browser_action
+                if hasattr(last_obs, 'last_browser_action')
+                else ''
+            )
 
+            # Log to the separate file
+            log_url_action_json(url=cur_url_str, action=last_action_str)
+            self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+            ###
             try:
                 cur_axtree_txt = flatten_axtree_to_str(
                     last_obs.axtree_object,
@@ -195,6 +281,26 @@ class BrowsingAgent(Agent):
                     with_clickable=True,
                     filter_visible_only=True,
                 )
+                ###
+                # Save the AXTree representation to a file
+                timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M-%f')[:-3]
+                filename = os.path.join(
+                    WEB_DOCU_FOLDER,
+                    f'{timestamp_web}_page_{self.page_counter}.html',
+                )
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(cur_axtree_txt)
+
+                # Save the full raw AXTree as JSON
+                filename_json = os.path.join(
+                    WEB_DOCU_FOLDER,
+                    f'{timestamp_web}_page_{self.page_counter}.json',
+                )
+                with open(filename_json, 'w', encoding='utf-8') as f:
+                    json.dump(last_obs.axtree_object, f, indent=4, ensure_ascii=False)
+
+                self.page_counter += 1
+            ###
             except Exception as e:
                 logger.error(
                     'Error when trying to process the accessibility tree: %s', e
@@ -205,6 +311,9 @@ class BrowsingAgent(Agent):
 
         if goal is None:
             goal = state.inputs['task']
+        # Store the query in metrics (only on first step)
+        if self.metrics_tracker.query is None:
+            self.metrics_tracker.set_query(goal)
 
         system_msg = get_system_message(
             goal,
@@ -216,8 +325,19 @@ class BrowsingAgent(Agent):
         prompt = get_prompt(error_prefix, cur_url, cur_axtree_txt, prev_action_str)
         messages.append(Message(role='user', content=[TextContent(text=prompt)]))
 
+        self.metrics_tracker.increment_model_calls()  # Increment model call count
+
         response = self.llm.completion(
             messages=self.llm.format_messages_for_llm(messages),
             stop=[')```', ')\n```'],
         )
+        ###
+        # Extract token usage from the response object
+        if hasattr(response, 'usage'):
+            input_tokens = response.usage.get('prompt_tokens', 0)
+            output_tokens = response.usage.get('completion_tokens', 0)
+
+        # Record metrics before returning
+        self.metrics_tracker.record_step(step_start_time, input_tokens, output_tokens)
+        ###
         return self.response_parser.parse(response)

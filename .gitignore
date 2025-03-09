@@ -209,6 +209,7 @@ yarn-debug.log*
 yarn-error.log*
 
 logs
+logs_00
 logs_archive/
 TODO
 step_wise_evaluation

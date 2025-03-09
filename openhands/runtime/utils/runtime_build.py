@@ -362,8 +362,9 @@ def _build_sandbox_image(
         path=str(build_folder),
         tags=names,
         platform=platform,
-        extra_build_args=(extra_build_args or []) + ['--progress=plain'],
+        extra_build_args=extra_build_args,
     )
+
     if not image_name:
         raise AgentRuntimeBuildError(f'Build failed for image {names}')
 

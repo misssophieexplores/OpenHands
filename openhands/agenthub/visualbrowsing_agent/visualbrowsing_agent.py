@@ -278,7 +278,12 @@ Note:
                 last_action = event
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
                 # agent has responded, task finished.
-                return AgentFinishAction(outputs={'content': event.content})
+                final_answer = event.content
+                self.metrics_tracker.set_final_answer(final_answer) 
+                logger.info('Final Metrics Summary:')
+                logger.info(self.llm.metrics.log())
+                self.metrics_tracker.save_metrics() 
+                return AgentFinishAction(outputs={'content': event.content})  
             elif isinstance(event, Observation):
                 last_obs = event
 
@@ -300,7 +305,7 @@ Note:
                 error_prefix = get_error_prefix(last_obs)
                 if len(error_prefix) > 0:
                     self.error_accumulator += 1
-                    if self.error_accumulator > 5:
+                    if self.error_accumulator > 10:
                         return MessageAction(
                             'Too many errors encountered. Task failed.'
                         )
@@ -340,7 +345,9 @@ Note:
                     'Error when trying to process the accessibility tree: %s', e
                 )
                 return MessageAction('Error encountered when browsing.')
-            set_of_marks = last_obs.set_of_marks
+            set_of_marks = last_obs.set_of_marks if hasattr(last_obs, "set_of_marks") else None
+        else:
+            set_of_marks = None  
         goal, image_urls = state.get_current_user_intent()
 
         if goal is None:

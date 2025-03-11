@@ -20,6 +20,7 @@ from openhands.storage.locations import (
 from openhands.utils.async_utils import call_sync_from_async
 from openhands.utils.shutdown_listener import should_continue
 from openhands.events.observation.observation import Observation
+from openhands.events.observation.interim_memory_observation import InterimMemoryObservation
 from openhands.events.action import Action
 
 class EventStreamSubscriber(str, Enum):
@@ -263,7 +264,7 @@ class EventStream:
         self._clean_up_subscriber(subscriber_id, callback_id)
 
     def add_event(self, event: Event, source: EventSource):
-        if not isinstance(event, (Action, Observation)):  # TODO TEST IF THIS WORKDS
+        if not isinstance(event, (Action, Observation, InterimMemoryObservation)):  # TODO TEST IF THIS WORKDS
             raise ValueError('Event must be either action or observation')
 
         if hasattr(event, '_id') and event.id is not None:

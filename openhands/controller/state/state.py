@@ -105,70 +105,64 @@ class State:
     # Interim memory for storing intermediate results
     interim_memory: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
-        """Initialize interim memory with test values (for testing only)."""
-        if not isinstance(self.interim_memory, dict):
-            self.interim_memory = {}
-
-        # ⚠️ Hardcoded test values (REMOVE after testing)
-        self.interim_memory.update({
-            "current_president": "Joe Biden",
-            "first_president": {"name": "George Washington", "birth_year": 1732},
-            "pi_value": 3.1415926535,
-        })
-        logger.info(f'[DEBUG] Initial Interim Memory: {self.interim_memory}')
-
     def reset_memory(self):
         """Resets interim memory when starting a new run."""
         self.interim_memory.clear()
         logger.debug('Interim memory has been reset.')
         
-    def handle_interim_memory_action(self, action: InterimMemoryAction) -> Any:
+    def handle_interim_memory_action(self, action: InterimMemoryAction) -> InterimMemoryObservation:
         """Processes interim memory actions: store, update, and retrieve."""
 
         if action.browser_actions == 'store_interim_memory':
             self.interim_memory[action.key] = action.value
             logger.info(f'[STATE INTERIM MEMORY] Stored: {action.key} -> {action.value}')
-            return InterimMemoryObservation(
+            observation =  InterimMemoryObservation(
                 memory_content={action.key: action.value},
                 content=f"Stored key '{action.key}' successfully."
             )
+            return observation
 
         elif action.browser_actions == 'update_interim_memory':
             if action.key in self.interim_memory:
                 self.interim_memory[action.key] = action.value
                 logger.info(f'[STATE INTERIM MEMORY] Updated: {action.key} -> {action.value}')
-                return InterimMemoryObservation(
+                observation = InterimMemoryObservation(
                     memory_content={action.key: action.value},
                     content=f"Updated key '{action.key}' successfully."
                 )
+                return observation
             else:
                 logger.warning(f'[STATE INTERIM MEMORY] Update failed - key not found: {action.key}')
-                return InterimMemoryObservation(
+                observation =  InterimMemoryObservation(
                     memory_content={},
                     content=f"Key '{action.key}' not found in interim memory."
                 )
+                return observation
 
         elif action.browser_actions == 'retrieve_interim_memory':
             if action.key:
                 result = self.interim_memory.get(action.key, None)
                 logger.info(f'[STATE INTERIM MEMORY] Retrieved: {action.key} -> {result}')
-                return InterimMemoryObservation(
+                observation =  InterimMemoryObservation(
                     memory_content={action.key: result},
                     content=f"Retrieved '{action.key}': {result}" if result is not None else f"Key '{action.key}' not found."
                 )
+                return observation
+
             logger.info('[STATE INTERIM MEMORY] Retrieved all stored keys.')
-            return InterimMemoryObservation(
+            observation = InterimMemoryObservation(
                 memory_content=self.interim_memory,
                 content="Retrieved entire interim memory."
             )
+            return observation
 
         else:
             logger.warning(f'[STATE INTERIM MEMORY] Unknown action received: {action.browser_actions}')
-            return InterimMemoryObservation(
+            observation =  InterimMemoryObservation(
                 memory_content={},
                 content='Invalid interim memory action.'
             )
+            return observation
 
 
     def save_to_session(self, sid: str, file_store: FileStore):

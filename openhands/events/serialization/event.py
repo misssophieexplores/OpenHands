@@ -5,10 +5,13 @@ from pydantic import BaseModel
 
 from openhands.events import Event, EventSource
 from openhands.events.observation.observation import Observation
+from openhands.events.action import Action
+from openhands.events.observation.interim_memory_observation import InterimMemoryObservation
 from openhands.events.serialization.action import action_from_dict
 from openhands.events.serialization.observation import observation_from_dict
 from openhands.events.serialization.utils import remove_fields
 from openhands.events.tool import ToolCallMetadata
+
 
 # TODO: move `content` into `extras`
 TOP_KEYS = [
@@ -65,6 +68,9 @@ def _convert_pydantic_to_dict(obj: BaseModel | dict) -> dict:
 
 
 def event_to_dict(event: 'Event') -> dict:
+
+    if not isinstance(event, (Action, Observation, InterimMemoryObservation)):
+        raise ValueError('Event must be an instance of Action or Observation, incl. InterimMemoryObservation')
     props = asdict(event)
     d = {}
     for key in TOP_KEYS:

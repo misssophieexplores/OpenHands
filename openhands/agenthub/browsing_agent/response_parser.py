@@ -75,10 +75,6 @@ class BrowsingActionParserInterimMemory(ActionParser):
             ("store_interim_memory", "update_interim_memory", "retrieve_interim_memory")
         )
 
-        logger.info(
-            f'[INTERIM MEMORY PARSER] Checking condition for action: {repr(cleaned_action_str)} -> Match: {is_interim}'
-        )
-
         return is_interim
 
     def parse(self, action_str: str) -> Action:
@@ -131,9 +127,6 @@ class BrowsingActionParserInterimMemory(ActionParser):
         # Extract key-value
         key = args[0]
         value = args[1] if len(args) > 1 else None
-
-        # Logging for debugging
-        logger.info(f"[INTERIM MEMORY PARSER] Parsed action: {action_type} | Key: {key} | Value: {value}")
 
         # Extract user message (if any)
         msg_content = ''

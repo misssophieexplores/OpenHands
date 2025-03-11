@@ -25,6 +25,8 @@ from openhands.events.observation.observation import Observation
 from openhands.events.observation.reject import UserRejectObservation
 from openhands.events.observation.success import SuccessObservation
 
+from openhands.events.observation.interim_memory_observation import InterimMemoryObservation
+
 observations = (
     NullObservation,
     CmdOutputObservation,
@@ -40,6 +42,7 @@ observations = (
     UserRejectObservation,
     AgentCondensationObservation,
     AgentThinkObservation,
+    InterimMemoryObservation, 
 )
 
 OBSERVATION_TYPE_TO_CLASS = {

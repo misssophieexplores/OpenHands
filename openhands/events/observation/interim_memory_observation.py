@@ -9,13 +9,12 @@ class InterimMemoryObservation(Observation):
     """Custom observation type for storing retrieved interim memory content."""
 
     memory_content: Dict = field(default_factory=dict)
-    runnable: ClassVar[bool] = False  
-
+    runnable: ClassVar[bool] = False 
+    observation: ClassVar[str] = "interim_memory"
     def __post_init__(self):
-        """Ensure the `Observation` superclass is correctly initialized with `content`."""
-        formatted_memory = "\n".join([f"{key}: {value}" for key, value in self.memory_content.items()])
-        super().__init__(content=formatted_memory) 
-        self._source = EventSource.ENVIRONMENT 
+        """Ensure the `Observation` superclass is correctly initialized."""
+        super().__init__(content=str(self.memory_content)) 
+        self._source = EventSource.ENVIRONMENT  
     def __str__(self):
         formatted_memory = "\n".join([f"{key}: {value}" for key, value in self.memory_content.items()])
         return f"**InterimMemoryObservation**\nRetrieved Memory:\n{formatted_memory}"

@@ -269,6 +269,15 @@
           }
         },
         {
+          "id": 21,
+          "query": "Which of the first three listings on 'https://www.onthemarket.com/to-rent/property/norwich/?bounding-box=%7Ds%7B%60I_i%60Hx%7Be%40fbjA&view=map-list' is closest to an outstanding school as per the websites classification? Provide distance and name of the school based on the listing information.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Ormiston Victory Academy", "0.4 miles"],
+            "urls": ["https://www.onthemarket.com/details/16665041/", "https://www.onthemarket.com/details/16721369/", "https://www.onthemarket.com/details/16720034/"]
+          }
+        },
+        {
           "id": 3,
           "query": "Which of the first four listings on 'https://www.primelocation.com/to-rent/property/norwich/?q=norwich&search_source=home&view_type=grid' offers off-street parking? Provide the names of the listings.",
           "checkpoints": {

@@ -56,8 +56,34 @@ def get_final_answer(metrics_path):
     query = metrics.get('query')
     agent_name = metrics.get('agent_name', 'unknown')
     difficulty = metrics.get('difficulty', 'unknown')
+    interim_memory_used, interim_memory_answer_retrieved = get_interim_memory_used(agent_name, metrics.get('visited_urls', {}))
 
-    return final_answer, visited_urls, query, agent_name, difficulty
+
+    return final_answer, visited_urls, query, agent_name, difficulty, interim_memory_used, interim_memory_answer_retrieved
+
+def get_interim_memory_used(agent_name, visited_urls):
+    """
+    Check if any interim memory actions were used.
+    """
+    if agent_name != 'openhands_memory_visual_browsing_agent':
+        return None, None
+
+    interim_memory_used = 0
+    interim_memory_answer_retrieved = 0
+    print(visited_urls)
+    print(type(visited_urls))
+
+    # Loop through the URLs and check their actions
+    for data in visited_urls.values():
+        actions = data["actions"]
+
+        if "retrieve_interim_memory" in actions:
+            return 1, 1  # Highest priority action found, return immediately
+
+        if any(action in actions for action in ["store_interim_memory", "update_interim_memory"]):
+            interim_memory_used = 1
+
+    return interim_memory_used, interim_memory_answer_retrieved
 
 
 def load_checkpoints(checkpoints_path):
@@ -133,13 +159,14 @@ def get_model_data(agent_name):
     """
     model_data = {'text_model': 1, 'vision_model': 0, 'multi_agent': 0}
 
-    if agent_name == 'openhands_visual_browsing_agent':
+    if agent_name == 'openhands_visual_browsing_agent' or agent_name == 'openhands_memory_visual_browsing_agent':
         model_data['vision_model'] = 1
     elif agent_name == 'openhands_delegator_agent':
         model_data['vision_model'] = 1
         model_data['multi_agent'] = 1
 
     return model_data
+
 
 
 # Define Paths
@@ -153,7 +180,7 @@ metrics_path, latest_log_folder = find_log_files(logs_base_path)
 print(f'Metrics File Path: {metrics_path}')
 
 if metrics_path:
-    final_answer, visited_urls, query, agent_name, difficulty = get_final_answer(
+    final_answer, visited_urls, query, agent_name, difficulty, interim_memory_used, interim_memory_answer_retrieved = get_final_answer(
         metrics_path
     )
 
@@ -207,6 +234,7 @@ if metrics_path:
                 success,
             ) = check_checkpoints([final_answer], checkpoints)
 
+
         # Move log folder to step_tasks if step and query_id were found
         new_log_folder = move_log_folder(latest_log_folder, step_tasks_path)
 
@@ -215,6 +243,7 @@ if metrics_path:
 
         # Get model data
         model_data = get_model_data(agent_name)
+
 
         # Write results to metrics.json
         with open(new_metrics_path, 'r', encoding='utf-8') as file:
@@ -229,7 +258,9 @@ if metrics_path:
                 'checkpoint_provided_ratio': checkpoint_provided_ratio,
                 'checkpoint_expected_ratio': checkpoint_expected_ratio,
                 'success': success,
-                **model_data,  # Add model data dynamically
+                'interim_memory_used': interim_memory_used,
+                'interim_memory_answer_retrieved': interim_memory_answer_retrieved,
+                **model_data,  # Add model data dynamically,
             }
         )
 

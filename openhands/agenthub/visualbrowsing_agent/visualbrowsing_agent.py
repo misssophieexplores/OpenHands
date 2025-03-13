@@ -178,7 +178,7 @@ class VisualBrowsingAgent(Agent):
         super().__init__(llm, config)
         self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
-            model_name=llm.config.model, agent_name='openhands_visual_browsing_agent'
+            model_name=llm.config.model, agent_name='openhands_memory_visual_browsing_agent'
         )
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
         # see https://github.com/ServiceNow/BrowserGym/blob/main/core/src/browsergym/core/action/highlevel.py for more details

@@ -1,0 +1,345 @@
+{
+    "step_01": {
+      "name": "",
+      "pages": [],
+      "goal": "",
+      "entries": [
+        {
+          "id": 0,
+          "query": "",
+          "checkpoints": {
+            "provided": [""],
+            "expected": [""]
+          }
+        }
+      ]
+    },
+    "step_02": {
+      "name": "Search and Filter Application",
+      "pages": ["real_estate_overview_page"],
+      "goal": "The agent inputs the required search criteria into the appropriate fields on the website.",
+      "entries": [
+        {
+          "id": 0,
+          "query": "Find rentals in Bristol on 'https://www.onthemarket.com/'. Return the URL of the search results page as your answer.",
+          "checkpoints": {
+            "provided": ["onthemarket.com"],
+            "expected": [ "bristol", "/to-rent"]
+          }
+        },
+        {
+          "id": 1,
+          "query": "Look at the filters available on 'https://www.primelocation.com/to-rent/property/manchester/' and set a price range of £1,000 to £2,000 per month. Return the URL of the search results page as your answer.",
+          "checkpoints": {
+            "provided": ["primelocation.com", "/to-rent", "manchester"],
+            "expected": ["price_min=1000", "price_max=2000"]
+          }
+        },
+        {
+          "id": 2,
+          "query": "Filter for furnished apartments in Denver on Craigslist ('https://denver.craigslist.org/search/apa'). Return the URL of the search results page as your answer.",
+          "checkpoints": {
+            "provided": ["denver.craigslist.org", "/apa"],
+            "expected": ["is_furnished=1"]
+          }
+        },
+        {
+          "id": 3,
+          "query": "Navigate to 'https://www.onthemarket.com/to-rent/property/bristol/' and adjust the search settings to show only listings that allow pets. Return the URL of the search results page as your answer.",
+          "checkpoints": {
+            "provided": ["onthemarket.com", "bristol", "/to-rent"],
+            "expected": ["pet-friendly=true"]
+          }
+        },
+        {
+          "id": 4,
+          "query": "Look at the filters available on 'https://www.onthemarket.com/to-rent/property/manchester/' and set a price range of £1,000 to £2,000 per month. Return the URL of the search results page as your answer.",
+          "checkpoints": {
+            "provided": ["onthemarket.com", "/to-rent", "manchester"],
+            "expected": ["max-price=2000", "min-price=1000"]
+          }
+        }
+      ]
+    },
+    "step_03": {
+      "name": "Interaction with Web Elements:",
+      "pages": ["real_estate_start_page", "real_estate_overview_page"],
+      "goal": "The agent interacts with dynamic elements on the page, such as search buttons and filters, to execute and refine the search.",
+      "entries": [
+        {
+          "id": 0,
+          "query": "Find properties to rent in Leeds on 'https://www.rightmove.co.uk/'. If asked to, accept all cookies.",
+          "checkpoints": {
+            "provided": ["rightmove.co.uk"],
+            "expected": ["to-rent/", "leeds"]
+          }
+        },
+        {
+          "id": 1,
+          "query": "Find properties to rent in Liverpool on 'https://www.onthemarket.com/'. If asked to, accept all cookies. Provide the URL of the search results page.",
+          "checkpoints": {
+            "provided": ["onthemarket.com"],
+            "expected": ["/to-rent", "liverpool"]
+          }
+        },
+        {
+          "id": 2,
+          "query": "Go to 'https://www.hollandresidential.com/co/denver/cadence/'. In the menu, navigate to 'Floor Plans' and filter for 2 beds. Give the names of the available units.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Coltrane C1", "Gershwin C2"],
+            "urls": ["https://www.hollandresidential.com/co/denver/cadence/"]
+          }
+        },
+        {
+          "id": 3,
+          "query": "Find 2 bedroom apartments on 'https://www.hollandresidential.com/co/denver/cadence/' and provide the names of the availabele units.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Coltrane C1", "Gershwin C2"],
+            "urls": ["https://www.hollandresidential.com/co/denver/cadence/"]
+          }
+        },
+        {
+          "id": 4,
+          "query": "Find 2 bedroom apartments on 'https://www.3300tamarac.com/?rcstdid=MzM=-dkCsfkCKtXI=' and provide the names of the available units.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["B1", "B2", "B3", "B4", "B5"],
+            "urls": [""]
+          }
+        }
+      ]
+    },
+    "step_04": {
+      "name": "Result Extraction",
+      "pages": ["real_estate_overview_page", "real_estate_detail_page"],
+      "goal": "Structured data from the search results, such as property names,prices, and basic attributes (e.g., number of bedrooms, location), is extracted.",
+      "entries": [
+        {
+          "id": 0,
+          "query": "Extract the name, price, and number of bedrooms for the first listing currently displayed in the search results page: 'https://www.onthemarket.com/to-rent/property/glasgow/?view=map-list'.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Name: Cumbernauld Road", "Price: £1,095 pcm", "Bedrooms: 2"]
+          }
+        },
+        {
+          "id": 1,
+          "query": "Extract the name, price, and number of bedrooms for the first three listings currently displayed in the search results page: 'https://www.onthemarket.com/to-rent/property/glasgow/?view=map-list'.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Cumbernauld Road", "1,095 pcm", "2", "Third Avenue", "1,895", "3", "Albion Gate", "130"]
+          }
+        },
+        {
+          "id": 2,
+          "query": "Locate the apartment with the highest price among the currently visible listings and provide its price and address on ‘https://www.primelocation.com/to-rent/property/glasgow/?q=Glasgow&search_source=home&view_type=grid’",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Holland Street", "8,883 pcm"]
+          }
+        },
+        {
+          "id": 3,
+          "query": "Go to the second page of results (‘https://www.primelocation.com/to-rent/property/glasgow/?q=Glasgow&search_source=home&view_type=grid’) and extract the price, number of bedrooms, and location for the first listing shown.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["ocation: Grant Street", "Price: £3,300 pcm", "Bedrooms: 5"]
+          }
+        }
+      ]
+    },
+    "step_05": {
+      "name": "Detail Page Extraction:",
+      "pages": ["real_estate_detail_page"],
+      "goal": "The agent navigates to individual detail pages to extract additional, more specific information, such as property descriptions or ther unstructured data not found in the search results.",
+      "entries": [
+        {
+          "id": 0,
+          "query": "What’s the nearest station from the following property (‘https://www.onthemarket.com/details/16572798/’)?",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Spring Lane"]
+          }
+        },
+        {
+          "id": 1,
+          "query": "What's the nearest tram station according to the property description ('https://www.onthemarket.com/details/16572798/')?",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Spring Lane"]
+          }
+        },
+        {
+          "id": 2,
+          "query": "Find the energy efficiency rating of the second property listed on 'https://www.primelocation.com/to-rent/property/sheffield/?q=Sheffield%2C%20South%20Yorkshire&search_source=home&view_type=grid'.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["82"],
+            "urls": ["https://www.primelocation.com/to-rent/details/68575449/?search_identifier=2d31d0cfea710f393aba7c9ce5ad8acd", "https://sturents.com/ajax/house/epc-image?house_id=368431&type=.png"]
+          }
+        },
+        {
+          "id": 3,
+          "query": "Describe the listing on 'https://www.onthemarket.com/details/16592214/' with the following features: address, property type, number of bedrooms, size and heating.",
+          "checkpoints": {
+            "provided": [],
+            "expected": ["Magdalen Street", "apartment", "2", "495 sq ft", "underfloor heating"],
+            "urls": ["https://www.onthemarket.com/details/16592214/"]
+          }
+        },
+        {
+          "id": 4,
+          "query": "Which is the closest outstanding school to this listing ('https://www.onthemarket.com/details/16520710/')? Provide distance and name of the school that fits best the criteria.",
+          "checkpoints": {
+            "provided": [],
+            "expected": ["Chapel Break Infant School", "0.7 miles"],
+            "urls": ["https://www.onthemarket.com/details/16520710/"]
+          }
+        },
+        {
+          "id": 5,
+          "query": "Which is the closest outstanding school to this listing ('https://www.onthemarket.com/details/16520710/')? Provide distance and name of the school based on the listing information.",
+          "checkpoints": {
+            "provided": [],
+            "expected": ["Chapel Break Infant School", "0.7 miles"],
+            "urls": ["https://www.onthemarket.com/details/16520710/"]
+          }
+        },
+        {
+          "id": 6,
+          "query": "Find out the office hours for the second property on 'https://miami.craigslist.org/search/apa#search=2~gallery~0'.",
+          "checkpoints": {
+            "provided": [],
+            "expected": ["9:00 AM", "5:00 PM", "Monday to Friday"],
+            "urls": ["https://miami.craigslist.org/brw/apa/d/hollywood-bed-bath-avail-now-for-1755/7828593811.html"]
+          }
+        },
+        {
+          "id": 7,
+          "query": "Which schools and parks are in walking distance of the listing at 'https://miami.craigslist.org/pbc/apa/d/lake-worth-convenient-full-size-washer/7827967231.html'?",
+          "checkpoints": {
+            "provided": [],
+            "expected": ["Palm Beach College", "John Prince Park","Palm Springs Plaza"],
+            "urls": ["https://miami.craigslist.org/search/apa#search=2~gallery~0"]
+          }
+        },
+        {
+          "id": 71,
+          "query": "Which universities are nearby the listing at 'https://miami.craigslist.org/mdc/apa/d/miami-gorgeous-2-apt-with-parking-spots/7827484222.html' according to the listing description?",
+          "checkpoints": {
+            "provided": [],
+            "expected": ["Johnson & Wales University", "Barry University","Florida International University"],
+            "urls": ["https://miami.craigslist.org/mdc/apa/d/miami-gorgeous-2-apt-with-parking-spots/7827484222.html"]
+          }
+        }
+      ]
+    },
+    "step_06": {
+      "name": "Task Requirement Evaluation",
+      "pages": ["real_estate_overview_page", "real_estate_detail_page"],
+      "goal": "Extracted information is evaluated against the task requirements. If the details meet the criteria, they are prepared for inclusion in the results table; if not, the entry is disregarded.",
+      "entries": [
+        {
+          "id": 0,
+          "query": "Which of the first five listings on 'https://www.onthemarket.com/to-rent/property/norwich/?bounding-box=%7Ds%7B%60I_i%60Hx%7Be%40fbjA&view=map-list' is closest to an outstanding school? Provide distance and name of the closest school.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["West Earlham Infant and Nursery School", "0.2 miles"],
+            "urls": ["https://www.onthemarket.com/details/16520710/", "https://www.onthemarket.com/details/16594231/", "https://www.onthemarket.com/details/16594232/", "https://www.onthemarket.com/details/16594192/", "https://www.onthemarket.com/details/16592544/"]
+          }
+        },
+        {
+          "id": 1,
+          "query": "Which of the first five listings on 'https://www.onthemarket.com/to-rent/property/norwich/?bounding-box=%7Ds%7B%60I_i%60Hx%7Be%40fbjA&view=map-list' is closest to an outstanding school as per the websites classification? Provide distance and name of the closest school.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["West Earlham Infant and Nursery School", "0.2 miles"],
+            "urls": ["https://www.onthemarket.com/details/16520710/", "https://www.onthemarket.com/details/16594231/", "https://www.onthemarket.com/details/16594232/", "https://www.onthemarket.com/details/16594192/", "https://www.onthemarket.com/details/16592544/"]
+          }
+        },
+        {
+          "id": 2,
+          "query": "Which of the first five listings on 'https://www.onthemarket.com/to-rent/property/norwich/?bounding-box=%7Ds%7B%60I_i%60Hx%7Be%40fbjA&view=map-list' is closest to an outstanding school as per the websites classification? Provide distance and name of the school based on the listing information.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["West Earlham Infant and Nursery School", "0.2 milies"],
+            "urls": ["https://www.onthemarket.com/details/16520710/", "https://www.onthemarket.com/details/16594231/", "https://www.onthemarket.com/details/16594232/", "https://www.onthemarket.com/details/16594192/", "https://www.onthemarket.com/details/16592544/"]
+          }
+        },
+        {
+          "id": 3,
+          "query": "Which of the first four listings on 'https://www.primelocation.com/to-rent/property/norwich/?q=norwich&search_source=home&view_type=grid' offers off-street parking? Provide the names of the listings.",
+          "checkpoints": {
+            "provided": [""],
+            "expected": ["Semi-detached house to rent in George Borrow Road", "Detached house to rent in Primula Drive"],
+            "urls": ["https://www.primelocation.com/to-rent/details/60837792/?search_identifier=039c90c6d36184e27b76c07809ff8d77", "https://www.primelocation.com/to-rent/details/66134544/?search_identifier=039c90c6d36184e27b76c07809ff8d77", "https://www.primelocation.com/to-rent/details/68853741/?search_identifier=039c90c6d36184e27b76c07809ff8d77", "https://www.primelocation.com/to-rent/details/64071804/?search_identifier=039c90c6d36184e27b76c07809ff8d77"]
+          }
+        },
+        {
+        "id": 3,
+        "query": "Which of the first four listings on 'https://www.primelocation.com/to-rent/property/cardiff/?q=cardiff&radius=0&results_sort=lowest_price&search_source=refine&view_type=grid' are suitable for a student? Provide the names of the listings.",
+        "checkpoints": {
+          "provided": [""],
+          "expected": ["Room to rent in Hamilton Street", "Room to rent in Harriet Street"]
+        }
+      }
+      ]
+  },
+  "step_07": {
+    "name": "Data Addition and Navigation Decision:",
+    "pages": ["real_estate_detail_page", "real_estate_overview_page"],
+    "goal": "Relevant data is added to the results table, after which the agent decides whether to continue to the next detail page (repeating steps 5 to 7) or return to the search results for further refinement (repeating steps 2 to 7).",
+    "entries": [
+      {
+        "id": 0,
+        "query": "For the following listings, create a table with the following columns: 'Name', 'Price', 'Bedrooms', and 'Address': 'https://www.onthemarket.com/details/15231397/', 'https://www.onthemarket.com/details/16147676/', 'https://www.onthemarket.com/details/11370980/'.",
+        "checkpoints": {
+          "provided": ["Name", "Price", "Bedrooms", "Address"],
+          "expected": ["2 bedroom apartment to rent", "£1,200 pcm", "2", "Weekday Cross", "4 bedroom property to rent", "£1,889 pcm", "4", "Warwick Avenue", "2 bedroom apartment to rent", "£900 pcm", "2", "Vellum House, Watermark Close" ]
+        }
+      },
+      {
+        "id": 1,
+        "query": "For the following listings, extract 'Name', 'Price', 'Bedrooms', and 'Address': 'https://www.onthemarket.com/details/15231397/', 'https://www.onthemarket.com/details/16147676/', 'https://www.onthemarket.com/details/11370980/'. Provide the extracted information in a structured format.",
+        "checkpoints": {
+          "provided": [],
+          "expected": [    "'Name': '2 bedroom apartment to rent'", "'Price': '£1,200 pcm'","'Bedrooms': '2'", "'Address': 'Weekday Cross'"]
+        }
+      },
+      {
+        "id": 2,
+        "query": "For the following three listings, ('https://www.primelocation.com/to-rent/details/68665774/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd', 'https://www.primelocation.com/to-rent/details/69125547/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd', and 'https://www.primelocation.com/to-rent/details/67139875/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd'), provide price, bedrooms, and address.",
+        "checkpoints": {
+          "provided": [],
+          "expected": ["£7,150 pcm", "10", "Forest Road", "£6,101 pcm", "8", "Peel Street", "£7,055 pcm", "11", "St James's Street"]
+        }
+      },
+      {
+        "id": 3,
+        "query": "For the following three listings, ('https://www.primelocation.com/to-rent/details/68665774/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd', 'https://www.primelocation.com/to-rent/details/69125547/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd', and 'https://www.primelocation.com/to-rent/details/67139875/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd'), provide price, bedrooms, and address as JSON.",
+        "checkpoints": {
+          "provided": [],
+          "expected": ["{\"listings\": [{\"url\": \"https://www.primelocation.com/to-rent/details/68665774/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd\", \"price\": \"£7,150 pcm\", \"bedrooms\": \"10 bedrooms\", \"address\": \"Forest Road, The Arboretum, Nottingham NG71\"}, {\"url\": \"https://www.primelocation.com/to-rent/details/69125547/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd\", \"price\": \"£6,101 pcm\", \"bedrooms\": \"8 bedrooms\", \"address\": \"Peel Street, Nottingham NG1\"}, {\"url\": \"https://www.primelocation.com/to-rent/details/67139875/?search_identifier=61cdd076a9ab57ecc25003f5350b6bcd\", \"price\": \"£7,055 pcm\", \"bedrooms\": \"11 bedrooms\", \"address\": \"St James's Street, Nottingham, Nottingham NG1\"}]}"]
+        }
+      },
+      {
+        "id": 4,
+        "query": "For the following overview site 'https://oregoncoast.craigslist.org/search/apa#search=2~gallery~0', provide price, bedrooms, and address of the first five listings as JSON.",
+        "checkpoints": {
+          "provided": [],
+          "expected": ["{\"listings\": [{\"price\": \"$795\", \"bedrooms\": \"Studio\", \"address\": \"Neskowin\"}, {\"price\": \"$1,495\", \"bedrooms\": \"Studio\", \"address\": \"Not specified\"}, {\"price\": \"$1,250\", \"bedrooms\": \"Not specified\", \"address\": \"130 NE SAN BAYO CIR\"}, {\"price\": \"$1,780\", \"bedrooms\": \"3br\", \"address\": \"north bend\"}, {\"price\": \"$840\", \"bedrooms\": \"Not specified\", \"address\": \"1600 Rhododendron Dr\"}]}"]
+        }
+      },
+      {
+        "id": 5,
+        "query": "For the following overview site 'https://oregoncoast.craigslist.org/search/apa#search=2~gallery~0', provide name of listing, address, price, bedrooms, parking situation and pet allowance of the first four listings as JSON.",
+        "checkpoints": {
+          "provided": [],
+          "expected": ["{\"listings\": [{\"name\": \"Modern, furnished duplex west of Hwy 101 near beach\", \"address\": \"Rockaway Beach\", \"price\": \"$2,500\", \"bedrooms\": \"3\", \"parking\": \"no\"}, {\"price\": \"$1,495\", \"bedrooms\": \"Studio\", \"address\": \"Not specified\", \"name\": \"Ocean/Creek front studio\", \"parking\": \"off-street\", \"pet_allowance\": \"no\"}, {\"price\": \"$1,250\", \"bedrooms\": \"Not specified\", \"address\": \"130 NE SAN BAYO CIR\", \"name\": \"Large studio apartment\", \"parking\": \"off-street\", \"pet_allowance\": \"ok\"}]}"]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+- setting filters mostly okay
+- struggle with APPLYING the filters and or recognizing that a filter has been successfully set!
+- problematic: checkboxes smaller than annotation of bounding boxes (for VisualBrowsingAgent)
+
+RESULT VisualBrowsingAgent:
+- 30% have a URL as an answer
+- only 1 out of 10 has an answer that has been visited
+- but 50% of runs have reached an URL that fulfills all checkpoints (e.g., at some point, all filters were set correctly)
+
+
+step 7:
+- early stopping, provides one correct answer but does not continue
+- queries and prompts to the agent have to be specific

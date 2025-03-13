@@ -1,0 +1,5 @@
+poetry run python ./openhands/core/main.py \
+           -i 70 \
+           -t "Look for studio apartments in Liverpool City Centre with rent under £700 per month. Using 'https://www.onthemarket.com/' or 'https://www.primelocation.com/', find two suitable listings. Provide the address, price, and the direct link to the listings' detail pages as JSON."\
+           -c VisualBrowsingAgent \
+           -l llm

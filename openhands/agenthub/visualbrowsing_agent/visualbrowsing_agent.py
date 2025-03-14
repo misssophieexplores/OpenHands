@@ -218,20 +218,33 @@ In summary, the next action I will perform is ```click('324')```
 
 ---
 
-## Example 2: Storing Partial Answers in Interim Memory
-The user asked me to find the **price and availability** of multiple products. I have found the price for **Product A** but not its availability yet. Since this is part of the final answer, I will store the price under a structured key for later use:
+## Example 2: Storing partial answers in Interim Memory
+The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far:
 
-```store_interim_memory('product_A_price', '$49.99')```
+```store_interim_memory('product_A', {'price': '$49.99', 'product_id': '12345'})```
 
-I will now continue searching for availability information.
+I will now continue searching for the availability information.
 
-In summary, the next action I will perform is ```click('482')```
+---
+
+## Example 3: Updating Availability for Product A
+I have now found the availability for Product A. Since updates replace the entire stored value, I will first retrieve the existing information, modify it, and store it again.
+
+1. Retrieve the stored entry:
+```retrieve_interim_memory('product_A')```
+
+2. Modify the retrieved data by adding the availability:
+```store_interim_memory('product_A', {'price': '$49.99', 'product_id': '12345', 'availability': 'In Stock'})```
+
+Now, the full product information is saved in interim memory, and I can proceed with finding details for other products.
+
 """
+
         self.hints = """
 Note:
 * Make sure to use bid to identify elements when using commands.
 * Interacting with comboboxes, dropdowns, and auto-complete fields can be tricky; sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
-* Use interim memory to store ('store_interim_memory') or update ('update_interim_memory')  relevant information. Retrieve stored information using 'retrieve_interim_memory' before finalizing the answer.
+* Use interim memory to store ('store_interim_memory') relevant information. Retrieve stored information using 'retrieve_interim_memory' before finalizing the answer.
 """
         self.reset()
 

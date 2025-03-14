@@ -105,6 +105,19 @@ class State:
     # Interim memory for storing intermediate results
     interim_memory: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self):
+         """Initialize interim memory with test values (for testing only)."""
+         if not isinstance(self.interim_memory, dict):
+             self.interim_memory = {}
+ 
+         # ⚠️ Hardcoded test values (REMOVE after testing)
+         self.interim_memory.update({
+             "current_president": "Joe Biden",
+             "first_president": {"name": "George Washington", "birth_year": 1732},
+             "pi_value": 3.1415926535,
+         })
+         logger.info(f'[DEBUG] Initial Interim Memory: {self.interim_memory}')
+ 
     def reset_memory(self):
         """Resets interim memory when starting a new run."""
         self.interim_memory.clear()

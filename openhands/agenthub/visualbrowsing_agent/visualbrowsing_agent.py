@@ -136,7 +136,7 @@ Note: You can only interact with visible elements. If the "visible" tag is not p
 def get_action_prompt(action_set: InterimMemoryActionSet) -> str:
     action_set_generic_info = """\
 Note: This action set includes standard browsing actions as well as interim memory actions. Most of the browsing actions are python function executing playwright code. The primary way of referring to elements in the page is through bid which are specified in your observations.
-Interim memory actions allow you to store, update, and retrieve key-value pairs for later use.
+Interim memory actions allow you to store, update, and retrieve information for later use.
 """
     action_description = action_set.describe(
         with_long_description=False,
@@ -219,32 +219,14 @@ In summary, the next action I will perform is ```click('324')```
 ---
 
 ## Example 2: Storing partial answers in Interim Memory
-The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far:
-
-```store_interim_memory('product_A', {'price': '$49.99', 'product_id': '12345'})```
-
-I will now continue searching for the availability information.
-
----
-
-## Example 3: Updating Availability for Product A
-I have now found the availability for Product A. Since updates replace the entire stored value, I will first retrieve the existing information, modify it, and store it again.
-
-1. Retrieve the stored entry:
-```retrieve_interim_memory('product_A')```
-
-2. Modify the retrieved data by adding the availability:
-```store_interim_memory('product_A', {'price': '$49.99', 'product_id': '12345', 'availability': 'In Stock'})```
-
-Now, the full product information is saved in interim memory, and I can proceed with finding details for other products.
-
+The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilt information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345')```
 """
 
         self.hints = """
 Note:
 * Make sure to use bid to identify elements when using commands.
 * Interacting with comboboxes, dropdowns, and auto-complete fields can be tricky; sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
-* Use interim memory to store ('store_interim_memory') relevant information. Retrieve stored information using 'retrieve_interim_memory' before finalizing the answer.
+* Use interim memory to store relevant information. Retrieve stored information before finalizing the answer.
 """
         self.reset()
 
@@ -286,7 +268,7 @@ Note:
             return BrowseInteractiveAction(browser_actions='noop(1000)')
 
         for event in state.history:
-            if isinstance(event, BrowseInteractiveAction):
+            if isinstance(event, (BrowseInteractiveAction, InterimMemoryAction)): # TODO: create case for InterimMemoryAction!!
                 prev_actions.append(event)
                 last_action = event
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
@@ -306,13 +288,13 @@ Note:
         # if the final BrowserInteractiveAction exec BrowserGym's send_msg_to_user,
         # we should also send a message back to the user in OpenHands and call it a day
         if (
-            isinstance(last_action, BrowseInteractiveAction)
+            isinstance(last_action, (BrowseInteractiveAction, InterimMemoryAction))
             and last_action.browsergym_send_msg_to_user
         ):
             return MessageAction(last_action.browsergym_send_msg_to_user)
 
         history_prompt = get_history_prompt(prev_actions)
-        if isinstance(last_obs, BrowserOutputObservation):
+        if isinstance(last_obs, (BrowserOutputObservation, InterimMemoryObservation)): 
             if last_obs.error:
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs)
@@ -330,15 +312,23 @@ Note:
             tabs = get_tabs(last_obs)
             cur_url_str = last_obs.url if hasattr(last_obs, 'url') else ''
 
+
             last_action_str = (
-                last_obs.last_browser_action
-                if hasattr(last_obs, 'last_browser_action')
-                else ''
+                last_obs.last_browser_action if hasattr(last_obs, "last_browser_action") 
+                else (f"{last_action.browser_actions}()" if isinstance(last_action, InterimMemoryAction) else '')
             )
+
+            print(f"\n###########\nDEBUGGING\nlast_action_str: {last_action_str}\nlast_obs.last_browser_action: {last_obs.last_browser_action}\nlast_action: {last_action}\n###########\n")
 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
             self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+            if cur_url_str:  # Normal browser actions
+                self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+            else:  # Handle interim memory actions
+                if isinstance(last_action, InterimMemoryAction):
+                    self.metrics_tracker.track_visited_url('', last_action_str)
+
             try:
                 # IMPORTANT: keep AX Tree of full webpage, add visible and clickable tags
                 cur_axtree_txt = flatten_axtree_to_str(
@@ -359,7 +349,8 @@ Note:
                 )
                 return MessageAction('Error encountered when browsing.')
             set_of_marks = last_obs.set_of_marks if hasattr(last_obs, "set_of_marks") else None
-        else:
+        else: # TODO: currently, all InterimMemoryObservations end up here!
+                # TODO (next step): Do we need to return InterimMemoryObservations always?
             set_of_marks = None  
         goal, image_urls = state.get_current_user_intent()
 

@@ -9,39 +9,29 @@ from openhands.events.action.action import ActionSecurityRisk
 
 @dataclass
 class InterimMemoryAction(BrowseInteractiveAction):
-    browser_actions: str  # Can be "store_interim_memory", "update_interim_memory", or "retrieve_interim_memory"
+    browser_actions: str  # Can be "store_interim_memory",
     thought: str = ''
     browsergym_send_msg_to_user: str = ''
     action: str = ActionType.INTERIM_MEMORY
     runnable: ClassVar[bool] = True
     security_risk: ActionSecurityRisk | None = None
-    key: str = ''
-    value: Any = None  # Optional (needed for store & update)
+    content: str = '' 
 
     @property
     def message(self) -> str:
         """Formats the message based on the action type."""
         if self.browser_actions == 'store_interim_memory':
-            logger.info(f"[INTERIM MEMORY interim_memory.py] Storing key='{self.key}' with value='{self.value}'")
-            return f"I stored the key '{self.key}' with value '{self.value}' in interim memory."
-        elif self.browser_actions == 'update_interim_memory':
-            logger.info(f"[[INTERIM MEMORY interim_memory.py] Updating key='{self.key}' to new value='{self.value}'")
-            return f"I updated the key '{self.key}' to new value '{self.value}' in interim memory."
+            return f"I added to interim memory: '{self.content}'."
         elif self.browser_actions == 'retrieve_interim_memory':
-            logger.info(f"[INTERIM MEMORY interim_memory.py] Retrieving key='{self.key}' from interim memory")
-            return f"I retrieved the key '{self.key}' from interim memory."
-        return 'Invalid interim memory action.'
+            return "I retrieved the interim memory."
+        return "Invalid interim memory action."
 
     def __str__(self) -> str:
         """Formats logging output."""
-        ret = '**InterimMemoryAction**\n'
+        ret = "**InterimMemoryAction**\n"
         if self.thought:
-            ret += f'THOUGHT: {self.thought}\n'
-        ret += f'INTERIM_MEMORY_ACTION: {self.browser_actions}'
-        if self.key is not None:
-            ret += f'\nKEY: {self.key}\n'
-        if self.value is not None:
-            ret += f'VALUE: {self.value}\n'
+            ret += f"THOUGHT: {self.thought}\n"
+        ret += f"INTERIM_MEMORY_ACTION: {self.browser_actions}\nCONTENT: {self.content}"
         return ret
 
 
@@ -50,16 +40,11 @@ class InterimMemoryAction(BrowseInteractiveAction):
 # ===========================
 
 
-def store_interim_memory(key: str, value: Any) -> InterimMemoryAction:
-    """Stores a key-value pair in interim memory."""
-    return InterimMemoryAction(browser_actions='store', key=key, value=value)
+def store_interim_memory(content: str) -> InterimMemoryAction:
+    """Appends new text to interim memory."""
+    return InterimMemoryAction(browser_actions="store_interim_memory", content=content)
 
-
-def update_interim_memory(key: str, value: Any) -> InterimMemoryAction:
-    """Updates an existing key-value pair in interim memory."""
-    return InterimMemoryAction(browser_actions='update', key=key, value=value)
-
-
-def retrieve_interim_memory(key: str) -> InterimMemoryAction:
-    """Retrieves a stored value from interim memory."""
-    return InterimMemoryAction(browser_actions='retrieve', key=key)
+# Retrieve function remains the same
+def retrieve_interim_memory() -> InterimMemoryAction:
+    """Retrieves the full interim memory."""
+    return InterimMemoryAction(browser_actions="retrieve_interim_memory")

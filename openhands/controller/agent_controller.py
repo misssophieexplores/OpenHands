@@ -41,7 +41,9 @@ from openhands.events.action import (
     IPythonRunCellAction,
     MessageAction,
     NullAction,
+    InterimMemoryAction
 )
+
 from openhands.events.event import Event
 from openhands.events.observation import (
     AgentCondensationObservation,
@@ -50,6 +52,7 @@ from openhands.events.observation import (
     ErrorObservation,
     NullObservation,
     Observation,
+    InterimMemoryObservation #TODO
 )
 from openhands.events.serialization.event import event_to_trajectory, truncate_content
 from openhands.llm.llm import LLM
@@ -357,7 +360,6 @@ class AgentController:
                 )
                 await self.delegate.set_agent_state_to(AgentState.RUNNING)
             return
-
         elif isinstance(action, AgentFinishAction):
             self.state.outputs = action.outputs
             self.state.metrics.merge(self.state.local_metrics)
@@ -366,6 +368,14 @@ class AgentController:
             self.state.outputs = action.outputs
             self.state.metrics.merge(self.state.local_metrics)
             await self.set_agent_state_to(AgentState.REJECTED)
+        elif isinstance(action, InterimMemoryAction):
+            result = self.state.handle_interim_memory_action(action)
+            # If retrieving memory, add an observation event
+            if isinstance(result, InterimMemoryObservation):
+                self.event_stream.add_event(result, EventSource.ENVIRONMENT)
+            return 
+
+
 
     async def _handle_observation(self, observation: Observation) -> None:
         """Handles observation from the event stream.
@@ -736,6 +746,9 @@ class AgentController:
             # self.event_stream.add_event(action, action._source)  # type: ignore [attr-defined]
             if isinstance(action, Observation): 
                 self.event_stream.add_event(action, EventSource.ENVIRONMENT)
+            # # TODO
+            # if isinstance(action, InterimMemoryObservation):
+            #     self.event_stream.add_event(action, action._source)
             else:
                 self.event_stream.add_event(action, action._source)  # type: ignore [attr-defined]
             

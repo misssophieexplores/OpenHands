@@ -54,7 +54,7 @@ class BrowsingResponseParser(ResponseParser):
 
 
 class BrowsingActionParserInterimMemory(ActionParser):
-    """Parser for interim memory actions: Store, Update, Retrieve."""
+    """Parser for interim memory actions: Store, Retrieve."""
 
     def check_condition(self, action_str: str) -> bool:
         """Check if the action string contains an interim memory action, handling backticks and extra formatting."""
@@ -72,13 +72,13 @@ class BrowsingActionParserInterimMemory(ActionParser):
 
         # Check if the cleaned action string matches our new unified interim memory format
         is_interim = cleaned_action_str.startswith(
-            ("store_interim_memory", "update_interim_memory", "retrieve_interim_memory")
+            ("store_interim_memory", "retrieve_interim_memory")
         )
-
         return is_interim
 
     def parse(self, action_str: str) -> Action:
         """Parses an interim memory action into an `InterimMemoryAction`."""
+        logger.info(f'[PARSING] full `action_str`: {action_str}')
         parts = action_str.split('```')
         memory_action_str = (
             parts[1].strip()
@@ -89,7 +89,7 @@ class BrowsingActionParserInterimMemory(ActionParser):
 
         # Match action type and parameters
         match = re.match(
-            r'(store_interim_memory|update_interim_memory|retrieve_interim_memory)(?:\((.*?)\))?',
+            r'(store_interim_memory|retrieve_interim_memory)(?:\((.*?)\))?',
             memory_action_str,
         )
 
@@ -101,32 +101,23 @@ class BrowsingActionParserInterimMemory(ActionParser):
                 browser_actions=f'[INTERIM MEMORY] INVALID ACTION: {memory_action_str}'
             )
 
-        action_type, params = match.groups()
+        action_type, content = match.groups()
+        # logger.info(f'[PARSING] ACTION_TYPE: {action_type}')
+        # Ensure `content` is a valid string before stripping
+        content = content.strip().strip('"').strip("'") if content else ""
+
+        # logger.info(f'[PARSING] STRIPPED CONTENT: {content}')
 
         # Explicitly handle `retrieve_interim_memory`
         if action_type == "retrieve_interim_memory":
-            key = params.strip("'") if params else None  # If there's a key, strip quotes
-            return InterimMemoryAction(browser_actions=action_type, key=key, value=None, thought=thought)
+            # logger.info(f'[PARSING] `retrieve_interim_memory` THOUGHT: {thought} CONTENT: {content}')
+            return InterimMemoryAction(browser_actions=action_type, content="", thought=thought)
 
-        # Check if `params` exist before evaluating
-        if not params:
-            logger.error(f"[INTERIM MEMORY] Expected parameters for {action_type}, but got None.")
+        # Ensure content exists for `store_interim_memory`
+        if not content:
+            logger.error(f"[PARSING] Expected content for {action_type}, but got None.")
             return BrowseInteractiveAction(browser_actions=f"INVALID ACTION: {memory_action_str}")
 
-        # Handle dict values properly
-        try:
-            args = ast.literal_eval(f'({params})') if ',' in params else (ast.literal_eval(params),)
-        except Exception as eval_error:
-            logger.error(
-                f'[INTERIM MEMORY] Error evaluating parameters: {params}. Error: {eval_error}'
-            )
-            return BrowseInteractiveAction(
-                browser_actions=f'INVALID ACTION: {memory_action_str}'
-            )
-
-        # Extract key-value
-        key = args[0]
-        value = args[1] if len(args) > 1 else None
 
         # Extract user message (if any)
         msg_content = ''
@@ -140,14 +131,17 @@ class BrowsingActionParserInterimMemory(ActionParser):
                     match = re.search(r'send_msg_to_user\((["\'])(.*?)\1\)', sub_action)
                     if match:
                         msg_content = match.group(2)
+        
+        logger.info(f'[PARSING] BROWSER_ACTIONS: {action_type} THOUGHT: {thought} CONTENT: {content} MSG_CONTENT: {msg_content}')
 
         return InterimMemoryAction(
             browser_actions=action_type,
-            key=key,
-            value=value,
+            content=content,
             thought=thought,
             browsergym_send_msg_to_user=msg_content,
         )
+
+
 class BrowsingActionParserMessage(ActionParser):
     """Parser action:
     - BrowseInteractiveAction(browser_actions) - unexpected response format, message back to user

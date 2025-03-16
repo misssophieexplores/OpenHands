@@ -80,7 +80,7 @@ def get_interim_memory_used(agent_name, visited_urls):
         if "retrieve_interim_memory" in actions:
             return 1, 1  # Highest priority action found, return immediately
 
-        if any(action in actions for action in ["store_interim_memory", "update_interim_memory"]):
+        if any(action in actions for action in ["store_interim_memory"]):
             interim_memory_used = 1
 
     return interim_memory_used, interim_memory_answer_retrieved

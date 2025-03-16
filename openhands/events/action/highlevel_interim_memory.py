@@ -5,23 +5,16 @@ from browsergym.core.action.highlevel import HighLevelActionSet
 from openhands.events.action.interim_memory import InterimMemoryAction
 
 
-def store_interim_memory(key: str, value: Any):
+def store_interim_memory(content: str):
     """Stores a key-value pair in interim memory."""
     return InterimMemoryAction(
-        browser_actions='store_interim_memory', key=key, value=value
+        browser_actions='store_interim_memory', content=content
     )
 
 
-def update_interim_memory(key: str, value: Any):
-    """Updates a key-value pair in interim memory."""
-    return InterimMemoryAction(
-        browser_actions='update_interim_memory', key=key, value=value
-    )
-
-
-def retrieve_interim_memory(key: str):
+def retrieve_interim_memory():
     """Retrieves a stored value from interim memory."""
-    return InterimMemoryAction(browser_actions='retrieve_interim_memory', key=key)
+    return InterimMemoryAction(browser_actions='retrieve_interim_memory')
 
 
 class InterimMemoryActionSet(HighLevelActionSet):
@@ -38,7 +31,6 @@ class InterimMemoryActionSet(HighLevelActionSet):
         self.actions.update(
             {
                 'store_interim_memory': store_interim_memory,
-                'update_interim_memory': update_interim_memory,
                 'retrieve_interim_memory': retrieve_interim_memory,
             }
         )

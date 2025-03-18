@@ -219,7 +219,7 @@ In summary, the next action I will perform is ```click('324')```
 ---
 
 ## Example 2: Storing partial answers in Interim Memory
-The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilt information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345')```
+The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilty information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345'), scroll(0, 1000)```
 """
 
         self.hints = """
@@ -260,17 +260,20 @@ Note:
         tabs = ''
         last_obs = None
         last_action = None
+        observation_txt = "No observation available."
+        som_screenshot = None
 
         if len(state.history) == 1:
             # for visualwebarena, webarena and miniwob++ eval, we need to retrieve the initial observation already in browser env
             # initialize and retrieve the first observation by issuing an noop OP
             # For non-benchmark browsing, the browser env starts with a blank page, and the agent is expected to first navigate to desired websites
             return BrowseInteractiveAction(browser_actions='noop(1000)')
-
+        
+        # Step 1: Identify last action & observation
         for event in state.history:
-            if isinstance(event, (BrowseInteractiveAction, InterimMemoryAction)): # TODO: create case for InterimMemoryAction!!
+            if isinstance(event, (BrowseInteractiveAction, InterimMemoryAction)): 
                 prev_actions.append(event)
-                last_action = event
+                last_action = event 
             elif isinstance(event, MessageAction) and event.source == EventSource.AGENT:
                 # agent has responded, task finished.
                 final_answer = event.content
@@ -279,12 +282,25 @@ Note:
                 logger.info(self.llm.metrics.log())
                 self.metrics_tracker.save_metrics() 
                 return AgentFinishAction(outputs={'content': event.content})  
+            elif isinstance(event, InterimMemoryObservation):
+                # Ensure last_action is correctly updated when storing interim memory
+                last_action_str = (
+                    last_action.browser_actions if isinstance(last_action, InterimMemoryAction)
+                    else last_obs.last_browser_action if isinstance(last_obs, InterimMemoryObservation)
+                    else "retrieve_interim_memory()"
+                )
+
+                last_obs = event
+                last_action = event 
+
+    
             elif isinstance(event, Observation):
                 last_obs = event
 
         if len(prev_actions) >= 1:  # ignore noop()
             prev_actions = prev_actions[1:]  # remove the first noop action
 
+        # Step 2: Handle agent response if needed
         # if the final BrowserInteractiveAction exec BrowserGym's send_msg_to_user,
         # we should also send a message back to the user in OpenHands and call it a day
         if (
@@ -292,7 +308,8 @@ Note:
             and last_action.browsergym_send_msg_to_user
         ):
             return MessageAction(last_action.browsergym_send_msg_to_user)
-
+        
+        # Step 3: Separate Handling for Browser vs Interim Memory Observations
         history_prompt = get_history_prompt(prev_actions)
         if isinstance(last_obs, (BrowserOutputObservation, InterimMemoryObservation)): 
             if last_obs.error:
@@ -304,19 +321,19 @@ Note:
                         return MessageAction(
                             'Too many errors encountered. Task failed.'
                         )
-            focused_element = '## Focused element:\nNone\n'
-            if last_obs.focused_element_bid is not None:
-                focused_element = (
-                    f"## Focused element:\nbid='{last_obs.focused_element_bid}'\n"
-                )
-            tabs = get_tabs(last_obs)
+            if isinstance(last_obs, BrowserOutputObservation):
+                # check if the last observation is an error for BrowswerOutputObservation
+                focused_element = '## Focused element:\nNone\n'
+                if last_obs.focused_element_bid is not None:
+                    focused_element = (
+                        f"## Focused element:\nbid='{last_obs.focused_element_bid}'\n"
+                    )
+                tabs = get_tabs(last_obs)
             cur_url_str = last_obs.url if hasattr(last_obs, 'url') else ''
 
 
-            last_action_str = (
-                last_obs.last_browser_action if hasattr(last_obs, "last_browser_action") 
-                else (f"{last_action.browser_actions}()" if isinstance(last_action, InterimMemoryAction) else '')
-            )
+            last_action_str = last_obs.last_browser_action if isinstance(last_obs, BrowserOutputObservation) else last_action.last_browser_action
+
 
             print(f"\n###########\nDEBUGGING\nlast_action_str: {last_action_str}\nlast_obs.last_browser_action: {last_obs.last_browser_action}\nlast_action: {last_action}\n###########\n")
 
@@ -329,29 +346,48 @@ Note:
                 if isinstance(last_action, InterimMemoryAction):
                     self.metrics_tracker.track_visited_url('', last_action_str)
 
-            try:
-                # IMPORTANT: keep AX Tree of full webpage, add visible and clickable tags
-                cur_axtree_txt = flatten_axtree_to_str(
-                    last_obs.axtree_object,
-                    extra_properties=last_obs.extra_element_properties,
-                    with_visible=True,
-                    with_clickable=True,
-                    with_center_coords=False,
-                    with_bounding_box_coords=False,
-                    filter_visible_only=False,
-                    filter_with_bid_only=False,
-                    filter_som_only=False,
-                )
-                cur_axtree_txt = get_axtree(axtree_txt=cur_axtree_txt)
-            except Exception as e:
-                logger.error(
-                    'Error when trying to process the accessibility tree: %s', e
-                )
-                return MessageAction('Error encountered when browsing.')
-            set_of_marks = last_obs.set_of_marks if hasattr(last_obs, "set_of_marks") else None
-        else: # TODO: currently, all InterimMemoryObservations end up here!
-                # TODO (next step): Do we need to return InterimMemoryObservations always?
-            set_of_marks = None  
+
+            if isinstance(last_obs, BrowserOutputObservation): # only for BrowserOutputObservations
+                try:
+                    # IMPORTANT: keep AX Tree of full webpage, add visible and clickable tags
+                    cur_axtree_txt = flatten_axtree_to_str(
+                        last_obs.axtree_object,
+                        extra_properties=last_obs.extra_element_properties,
+                        with_visible=True,
+                        with_clickable=True,
+                        with_center_coords=False,
+                        with_bounding_box_coords=False,
+                        filter_visible_only=False,
+                        filter_with_bid_only=False,
+                        filter_som_only=False,
+                    )
+                    cur_axtree_txt = get_axtree(axtree_txt=cur_axtree_txt)
+                except Exception as e:
+                    logger.error(
+                        'Error when trying to process the accessibility tree: %s', e
+                    )
+                    return MessageAction('Error encountered when browsing.')
+                set_of_marks = last_obs.set_of_marks if hasattr(last_obs, "set_of_marks") else None
+
+        elif isinstance(last_obs, InterimMemoryObservation):
+            # Handle Interim Memory Observations
+            cur_url_str = ""  # No URL for interim memory
+            last_action_str = last_action.browser_actions if isinstance(last_action, InterimMemoryAction) else ""
+
+            log_url_action_json(url=cur_url_str, action=last_action_str)
+            self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+
+            observation_txt = f"Retrieved Interim Memory:\n{last_obs.content}"
+            som_screenshot = None  # No screenshot for interim memory
+            set_of_marks = None  # No marks needed for interim memory
+
+        else:
+            # Fallback case (should not happen)
+            logger.warning("Unhandled observation type: %s", type(last_obs))
+            observation_txt = "Unhandled observation."
+            som_screenshot = None
+            set_of_marks = None
+    
         goal, image_urls = state.get_current_user_intent()
 
         if goal is None:
@@ -360,23 +396,28 @@ Note:
         if self.metrics_tracker.query is None:
             self.metrics_tracker.set_query(goal)
         goal_txt, goal_images = create_goal_prompt(goal, image_urls)
-        observation_txt, som_screenshot = create_observation_prompt(
-            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
-        )
-        # Save screenshot if available
-        if som_screenshot is not None and len(som_screenshot) > 0:
-            timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
-            screenshot_filename = os.path.join(
-                WEB_DOCU_FOLDER,
-                f'{timestamp_som}_screenshot_{self.page_counter}.png',
-            )  # save screenshot with timestamp
-            self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
+        if isinstance(last_obs, BrowserOutputObservation):
+            observation_txt, som_screenshot = create_observation_prompt(
+                cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
+            )
 
-            try:
-                urllib.request.urlretrieve(som_screenshot, screenshot_filename)
-                logger.info(f'Saved screenshot to {screenshot_filename}')
-            except Exception as e:
-                logger.error(f'Failed to save screenshot: {e}')
+
+        # Step 4: Create the prompt for the LLM
+        if isinstance(last_obs, BrowserOutputObservation):
+            # Save screenshot if available
+            if som_screenshot is not None and len(som_screenshot) > 0:
+                timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
+                screenshot_filename = os.path.join(
+                    WEB_DOCU_FOLDER,
+                    f'{timestamp_som}_screenshot_{self.page_counter}.png',
+                )  # save screenshot with timestamp
+                self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
+
+                try:
+                    urllib.request.urlretrieve(som_screenshot, screenshot_filename)
+                    logger.info(f'Saved screenshot to {screenshot_filename}')
+                except Exception as e:
+                    logger.error(f'Failed to save screenshot: {e}')
 
         # Save the webpage structure (AXTree) and interaction history
         timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
@@ -426,6 +467,7 @@ You are an agent trying to solve a web task based on the content of the page and
             temperature=0.0,
             stop=[')```', ')\n```'],
         )
+        print(f"\nDEBUGGING RESPONSE: {response}\n")
         # Extract token usage from the response object
         if hasattr(response, 'usage'):
             input_tokens = response.usage.get('prompt_tokens', 0)
@@ -433,14 +475,13 @@ You are an agent trying to solve a web task based on the content of the page and
 
         # Record metrics before returning
         self.metrics_tracker.record_step(step_start_time, input_tokens, output_tokens)
-        # TODO: DEBUGGIN ONLY
-        action_str = self.response_parser.parse(response)
-        if isinstance(action_str, InterimMemoryAction):
-            result_observation = state.handle_interim_memory_action(action_str)
+        # # TODO: DEBUGGIN ONLY
+        # action_str = self.response_parser.parse(response)
+        # if isinstance(action_str, InterimMemoryAction):
+        #     result_observation = state.handle_interim_memory_action(action_str)
 
-            if isinstance(result_observation, InterimMemoryObservation):
-                logger.info(f"[DEBUG] Processing InterimMemoryObservation: {result_observation}")
-                return result_observation  # Ensures the agent reads and integrates the memory
+        #     if isinstance(result_observation, InterimMemoryObservation):
+        #         return result_observation  # Ensures the agent reads and integrates the memory
 
 
-        return self.response_parser.parse(response) # TODO: FOLLOW UP ON THIS
+        return self.response_parser.parse(response) 

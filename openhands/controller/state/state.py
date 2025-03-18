@@ -108,7 +108,8 @@ class State:
     def __post_init__(self):
         """Initialize interim memory as an empty string."""
         if not isinstance(self.interim_memory, str):
-            self.interim_memory = ""  # Initialize as an empty string
+            # self.interim_memory = ""  # Initialize as an empty string
+            self.interim_memory = "Neighbour's Name: Anneliese Boehm (1975)"
 
         logger.info(f'[DEBUG] Initial Interim Memory: "{self.interim_memory}"')
 
@@ -125,20 +126,26 @@ class State:
         if action.browser_actions == 'store_interim_memory':
             self.interim_memory += f"\n{action.content}"  # Append new content
             logger.info(f'[STATE INTERIM MEMORY] Appended: "{action.content}"')
-            return None
+            return InterimMemoryObservation(
+            content=f"Stored in interim memory: {action.content}",
+            memory_content=self.interim_memory,
+            last_browser_action=f"{action.browser_actions}('{action.content}')"
+        )
 
         elif action.browser_actions == 'retrieve_interim_memory':
             logger.info(f'[STATE INTERIM MEMORY] Retrieved interim memory.')
             return InterimMemoryObservation(
                 content=f"Retrieved interim memory: {self.interim_memory}",
-                memory_content=self.interim_memory
+                memory_content=self.interim_memory,
+                last_browser_action="retrieve_interim_memory()"
             )
 
         else:
             logger.warning(f'[STATE INTERIM MEMORY] Unknown action received: {action.browser_actions}')
             return InterimMemoryObservation(
                 content='Invalid interim memory action.',
-                memory_content=self.interim_memory
+                memory_content=self.interim_memory,
+                last_browser_action="invalid_interim_memory_action()"
             )
 
 

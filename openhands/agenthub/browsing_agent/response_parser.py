@@ -75,7 +75,6 @@ class BrowsingActionParserInterimMemory(ActionParser):
             ("store_interim_memory", "retrieve_interim_memory")
         )
         return is_interim
-
     def parse(self, action_str: str) -> Action:
         """Parses an interim memory action into an `InterimMemoryAction`."""
         logger.info(f'[PARSING] full `action_str`: {action_str}')
@@ -87,39 +86,29 @@ class BrowsingActionParserInterimMemory(ActionParser):
         )
         thought = parts[0].strip() if parts[1].strip() != '' else ''
 
-        # Match action type and parameters
-        match = re.match(
-            r'(store_interim_memory|retrieve_interim_memory)(?:\((.*?)\))?',
-            memory_action_str,
-        )
+        # Ensure full function call format (preserves parentheses)
+        action_match = re.match(r'(store_interim_memory|retrieve_interim_memory)(\(.*\))?', memory_action_str)
 
-        if not match:
-            logger.error(
-                f'[INTERIM MEMORY] Failed to parse action: {memory_action_str}'
-            )
+        if not action_match:
+            logger.error(f'[INTERIM MEMORY] Failed to parse action: {memory_action_str}')
             return BrowseInteractiveAction(
                 browser_actions=f'[INTERIM MEMORY] INVALID ACTION: {memory_action_str}'
             )
 
-        action_type, content = match.groups()
-        # logger.info(f'[PARSING] ACTION_TYPE: {action_type}')
-        # Ensure `content` is a valid string before stripping
+        action_type = action_match.group(1)  # "store_interim_memory" or "retrieve_interim_memory"
+        params = action_match.group(2)       # "('content')" or None
+
+        # Extract content properly
+        if params:
+            content_match = re.match(r'\((.*?)\)', params)
+            content = content_match.group(1) if content_match else ""
+        else:
+            content = ""
+
+        # Ensure valid content format
         content = content.strip().strip('"').strip("'") if content else ""
 
-        # logger.info(f'[PARSING] STRIPPED CONTENT: {content}')
-
-        # Explicitly handle `retrieve_interim_memory`
-        if action_type == "retrieve_interim_memory":
-            # logger.info(f'[PARSING] `retrieve_interim_memory` THOUGHT: {thought} CONTENT: {content}')
-            return InterimMemoryAction(browser_actions=action_type, content="", thought=thought)
-
-        # Ensure content exists for `store_interim_memory`
-        if not content:
-            logger.error(f"[PARSING] Expected content for {action_type}, but got None.")
-            return BrowseInteractiveAction(browser_actions=f"INVALID ACTION: {memory_action_str}")
-
-
-        # Extract user message (if any)
+        # Handle user message extraction
         msg_content = ''
         for sub_action in memory_action_str.split('\n'):
             if 'send_msg_to_user(' in sub_action:
@@ -131,7 +120,7 @@ class BrowsingActionParserInterimMemory(ActionParser):
                     match = re.search(r'send_msg_to_user\((["\'])(.*?)\1\)', sub_action)
                     if match:
                         msg_content = match.group(2)
-        
+
         logger.info(f'[PARSING] BROWSER_ACTIONS: {action_type} THOUGHT: {thought} CONTENT: {content} MSG_CONTENT: {msg_content}')
 
         return InterimMemoryAction(

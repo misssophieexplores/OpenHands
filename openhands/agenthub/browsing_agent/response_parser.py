@@ -10,6 +10,32 @@ from openhands.events.action import (
 )
 
 
+import re
+
+def add_noop_for_interim_memory(action_str: str) -> str:
+    """
+    Detects ```store_interim_memory(...) in the action string and appends ', noop(1000)'
+    at the very end of the function call, ensuring natural language text is untouched.
+
+    Args:
+        action_str (str): The full response string from LLM, including natural language.
+
+    Returns:
+        str: The modified action string with 'noop(1000)' appended if needed.
+    """
+    if not action_str:
+        return ""
+
+    # Match only if action starts with ```store_interim_memory( and capture everything after it
+    pattern = r"(```store_interim_memory\([^`]*)"
+
+    # Replace by appending ', noop(1000)' at the end of the function call
+    modified_action_str = re.sub(pattern, r"\1), noop(1000", action_str, count=1)
+
+    return modified_action_str
+
+
+
 class BrowsingResponseParser(ResponseParser):
     def __init__(self) -> None:
         # Need to pay attention to the item order in self.action_parsers
@@ -36,6 +62,11 @@ class BrowsingResponseParser(ResponseParser):
         if action_str is None:
             return ''
         action_str = action_str.strip()
+        # Debugging before modification
+
+        # Add `noop(1000)` to `store_interim_memory(...)` calls
+        action_str = add_noop_for_interim_memory(action_str)
+
         # Ensure action_str ends with ')```'
         if action_str:
             if not action_str.endswith('```'):
@@ -77,7 +108,6 @@ class BrowsingActionParserInterimMemory(ActionParser):
         return is_interim
     def parse(self, action_str: str) -> Action:
         """Parses an interim memory action into an `InterimMemoryAction`."""
-        logger.info(f'[PARSING] full `action_str`: {action_str}')
         parts = action_str.split('```')
         memory_action_str = (
             parts[1].strip()
@@ -90,7 +120,6 @@ class BrowsingActionParserInterimMemory(ActionParser):
         action_match = re.match(r'(store_interim_memory|retrieve_interim_memory)(\(.*\))?', memory_action_str)
 
         if not action_match:
-            logger.error(f'[INTERIM MEMORY] Failed to parse action: {memory_action_str}')
             return BrowseInteractiveAction(
                 browser_actions=f'[INTERIM MEMORY] INVALID ACTION: {memory_action_str}'
             )
@@ -121,7 +150,7 @@ class BrowsingActionParserInterimMemory(ActionParser):
                     if match:
                         msg_content = match.group(2)
 
-        logger.info(f'[PARSING] BROWSER_ACTIONS: {action_type} THOUGHT: {thought} CONTENT: {content} MSG_CONTENT: {msg_content}')
+        # logger.info(f'[PARSING] BROWSER_ACTIONS: {action_type} THOUGHT: {thought} CONTENT: {content} MSG_CONTENT: {msg_content}')
 
         return InterimMemoryAction(
             browser_actions=action_type,

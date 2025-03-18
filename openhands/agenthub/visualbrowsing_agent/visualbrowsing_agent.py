@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 import urllib.request
 from datetime import datetime
@@ -30,6 +31,7 @@ from openhands.runtime.plugins import (
 EXPERIMENT_FOLDER = get_experiment_folder()
 WEB_DOCU_FOLDER = get_web_docu_folder()
 URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
+
 
 
 def initialize_url_log():
@@ -154,6 +156,28 @@ def get_history_prompt(prev_actions: list[BrowseInteractiveAction]) -> str:
             f'\nOuput thought and action: {prev_actions[i].thought} ```{prev_actions[i].browser_actions}```\n'
         )
     return '\n'.join(history_prompt) + '\n'
+
+
+import re
+
+def modify_interim_memory_response(response_text: str) -> str:
+    """
+    Modifies the LLM response to append 'noop(1000)' when 'store_interim_memory(...)' is present.
+
+    Args:
+        response_text (str): The raw response from LLM.
+
+    Returns:
+        str: Modified response with noop(1000) appended.
+    """
+    # Match store_interim_memory(...) but WITHOUT expecting closing backticks
+    pattern = r"(```store_interim_memory\((.*?)\))"
+
+    # Append ', noop(1000)' at the end of the function call before it gets stopped
+    modified_text = re.sub(pattern, r"\1, noop(1000)", response_text)
+
+    return modified_text
+
 
 
 class VisualBrowsingAgent(Agent):
@@ -335,8 +359,6 @@ Note:
             last_action_str = last_obs.last_browser_action if isinstance(last_obs, BrowserOutputObservation) else last_action.last_browser_action
 
 
-            print(f"\n###########\nDEBUGGING\nlast_action_str: {last_action_str}\nlast_obs.last_browser_action: {last_obs.last_browser_action}\nlast_action: {last_action}\n###########\n")
-
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
             self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
@@ -461,13 +483,13 @@ You are an agent trying to solve a web task based on the content of the page and
         messages.append(Message(role='user', content=human_prompt))
 
         flat_messages = self.llm.format_messages_for_llm(messages)
-
+        
+        self.metrics_tracker.increment_model_calls()  # increment model call count
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,
             stop=[')```', ')\n```'],
         )
-        print(f"\nDEBUGGING RESPONSE: {response}\n")
         # Extract token usage from the response object
         if hasattr(response, 'usage'):
             input_tokens = response.usage.get('prompt_tokens', 0)
@@ -476,12 +498,12 @@ You are an agent trying to solve a web task based on the content of the page and
         # Record metrics before returning
         self.metrics_tracker.record_step(step_start_time, input_tokens, output_tokens)
         # # TODO: DEBUGGIN ONLY
-        # action_str = self.response_parser.parse(response)
-        # if isinstance(action_str, InterimMemoryAction):
-        #     result_observation = state.handle_interim_memory_action(action_str)
+        action_str = self.response_parser.parse(response)
+        if isinstance(action_str, InterimMemoryAction):
+            result_observation = state.handle_interim_memory_action(action_str)
 
-        #     if isinstance(result_observation, InterimMemoryObservation):
-        #         return result_observation  # Ensures the agent reads and integrates the memory
+            if isinstance(result_observation, InterimMemoryObservation):
+                return result_observation  # Ensures the agent reads and integrates the memory
 
 
         return self.response_parser.parse(response) 

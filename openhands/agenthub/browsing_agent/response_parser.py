@@ -10,29 +10,28 @@ from openhands.events.action import (
 )
 
 
-import re
-
 def add_noop_for_interim_memory(action_str: str) -> str:
     """
-    Detects ```store_interim_memory(...) in the action string and appends ', noop(1000)'
+    Detects ```store_interim_memory(' in the action string and appends `'), noop(1000)`
     at the very end of the function call, ensuring natural language text is untouched.
 
     Args:
         action_str (str): The full response string from LLM, including natural language.
 
     Returns:
-        str: The modified action string with 'noop(1000)' appended if needed.
+        str: The modified action string with `'), noop(1000)` appended if needed.
     """
     if not action_str:
         return ""
 
-    # Match only if action starts with ```store_interim_memory( and capture everything after it
-    pattern = r"(```store_interim_memory\([^`]*)"
+    # Match three backticks followed by `store_interim_memory('`, then capture everything up to the second single quote
+    pattern = r"```store_interim_memory\('[^']*'[^']*'"
 
-    # Replace by appending ', noop(1000)' at the end of the function call
-    modified_action_str = re.sub(pattern, r"\1), noop(1000", action_str, count=1)
+    # Append `'), noop(1000)` at the end of the matched function call
+    modified_action_str = re.sub(pattern, r"\0), noop(1000", action_str, count=1)
 
     return modified_action_str
+
 
 
 

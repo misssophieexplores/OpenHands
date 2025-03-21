@@ -13,8 +13,6 @@ class BrowserOutputObservation(Observation):
 
     url: str
     trigger_by_action: str
-    interim_memory: str = ''
-    include_interim_memory: bool = True
     screenshot: str = field(repr=False, default='')  # don't show in repr
     set_of_marks: str = field(default='', repr=False)  # don't show in repr
     error: bool = False
@@ -32,13 +30,6 @@ class BrowserOutputObservation(Observation):
     last_browser_action_error: str = ''
     focused_element_bid: str = ''
 
-    def __post_init__(self):
-        from openhands.memory.interim_memory import InterimMemory
-        self.interim_memory = InterimMemory.retrieve()
-        self.post_process_interim_memory()
-        # print('BrowserOutputObservation: interim memory retrieved:', self.interim_memory)
-        # print('BrowserOutputObservation instantiated at:')
-        # traceback.print_stack(limit=5)  # Print where the instance is created
 
 
     
@@ -65,7 +56,6 @@ class BrowserOutputObservation(Observation):
     def get_agent_obs_text(self) -> str:
         """Get a concise text that will be shown to the agent."""
         if self.trigger_by_action == ActionType.BROWSE_INTERACTIVE:
-            # update the interim memory:
             text = f'[Current URL: {self.url}]\n'
             text += f'[Focused element bid: {self.focused_element_bid}]\n\n'
             if self.error:
@@ -77,12 +67,7 @@ class BrowserOutputObservation(Observation):
                 )
             else:
                 text += '[Action executed successfully.]\n'
-            if self.include_interim_memory:
-                text += (
-                    f'\n================ BEGIN Interim Memory ================\n'
-                    f'{self.interim_memory}\n'
-                    f'================ END Interim Memory ================\n'
-                )
+
             try:
                 # We do not filter visible only here because we want to show the full content
                 # of the web page to the agent for simplicity.
@@ -125,17 +110,3 @@ class BrowserOutputObservation(Observation):
         )
         return cur_axtree_txt
     
-    def post_process_interim_memory(self):
-        """Removes the error flag for interim memory actions, if any."""
-        # TODO: logic to find errors with interim memory actions
-        if (
-            isinstance(self.last_browser_action, str) and 
-            (
-                self.last_browser_action.strip().startswith("store_interim_memory(")
-                or self.last_browser_action.strip().startswith("retrieve_interim_memory(")
-            )
-        ):
-            self.error = False
-            self.last_browser_action_error = ''
-
-

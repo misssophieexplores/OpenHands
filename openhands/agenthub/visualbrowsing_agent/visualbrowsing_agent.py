@@ -4,7 +4,7 @@ import time
 import urllib.request
 from datetime import datetime
 
-from openhands.events.action.highlevel_interim_memory import InterimMemoryActionSet
+from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.utils.obs import flatten_axtree_to_str
 
 from openhands.agenthub.browsing_agent.response_parser import BrowsingResponseParser
@@ -91,11 +91,10 @@ def create_observation_prompt(
     focused_element: str,
     error_prefix: str,
     som_screenshot: str | None,
-    interim_memory: str,
 ):
     txt_observation = f"""
 # Observation of current step:
-{interim_memory}{tabs}{axtree_txt}{focused_element}{error_prefix}\n
+{tabs}{axtree_txt}{focused_element}{error_prefix}\n
 """
    
     # screenshot + som: will be a non-empty string if present in observation
@@ -108,12 +107,6 @@ def create_observation_prompt(
         logger.info('SOM Screenshot not present in observation!')
     txt_observation += '\n'
     return txt_observation, screenshot_url
-
-def get_interim_memory(obs: BrowserOutputObservation) -> str:
-    """Retrieves interim memory from observation."""
-    if obs.interim_memory:
-        return f"\n## Interim Results (do not re-store information already listed here):\n{obs.interim_memory}\n"
-    return ''  # Return empty string if no interim memory
 
 def get_tabs(obs: BrowserOutputObservation) -> str:
     prompt_pieces = ['\n## Currently open tabs:']
@@ -139,7 +132,7 @@ Note: You can only interact with visible elements. If the "visible" tag is not p
     return f'\n## AXTree:\n{bid_info}{visible_tag_info}{axtree_txt}\n'
 
 
-def get_action_prompt(action_set: InterimMemoryActionSet) -> str:
+def get_action_prompt(action_set: HighLevelActionSet) -> str:
     action_set_generic_info = """\
 Note: This action set allows you to interact with your environment. Most of them are python function executing playwright code. The primary way of referring to elements in the page is through bid which are specified in your observations.
 
@@ -184,7 +177,7 @@ class VisualBrowsingAgent(Agent):
         super().__init__(llm, config)
         self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
-            model_name=llm.config.model, agent_name='openhands_memory_visual_browsing_agent'
+            model_name=llm.config.model, agent_name='openhands_visual_browsing_agent'
         )
 
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
@@ -196,7 +189,7 @@ class VisualBrowsingAgent(Agent):
             'tab',
             'infeas',
         ]
-        self.action_space = InterimMemoryActionSet(
+        self.action_space = HighLevelActionSet(
             subsets=action_subsets,
             strict=False,  # less strict on the parsing of the actions
             multiaction=False,
@@ -214,22 +207,16 @@ You must mandatorily think step by step. If you need to make calculations such a
 
 Here is a concrete example of how to format your answer. Make sure to generate the action in the correct format, ensuring that the action is present inside ``````:
 
-## Example 1: Handling UI interactions
+## Example: Handling UI interactions
 Let's think step-by-step. From the previous action, I tried to set the value of year to "2022" using select_option, but it doesn't appear to be in the form. It may be a dynamic dropdown, so I will try using click with the bid "324" and look at the response from the page.
 
 In summary, the next action I will perform is ```click('324')```
 
----
-
-## Example 2: Storing partial answers in Interim Memory
-The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilty information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345')```
 """
         self.hints = """
 Note:
 * Make sure to use bid to identify elements when using commands.
 * Interacting with comboboxes, dropdowns, and auto-complete fields can be tricky; sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
-* Use interim memory to store relevant information. Retrieve stored information before finalizing the answer.
-
 """
         self.reset()
 
@@ -262,8 +249,6 @@ Note:
         tabs = ''
         last_obs = None
         last_action = None
-        interim_memory = ''
-        include_interim_memory: bool = False
 
         if len(state.history) == 1:
             # for visualwebarena, webarena and miniwob++ eval, we need to retrieve the initial observation already in browser env
@@ -341,12 +326,6 @@ Note:
                 else ''
             )
 
-            # change retrieval based on last_actiion_str:
-            if 'store_interim_memory(' in last_action_str or 'retrieve_interim_memory(' in last_action_str:
-                include_interim_memory = True
-
-            if include_interim_memory:
-                interim_memory = get_interim_memory(last_obs) 
 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
@@ -380,7 +359,7 @@ Note:
             self.metrics_tracker.set_query(goal)
         goal_txt, goal_images = create_goal_prompt(goal, image_urls)
         observation_txt, som_screenshot = create_observation_prompt(
-            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks, interim_memory #TODO: when and from where to retrieve it? From observation or from InterimMemory directly?
+            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
         )
         #DEBUGGIN ONLY:
         # save observation_txt to file:

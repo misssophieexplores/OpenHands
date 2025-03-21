@@ -34,14 +34,6 @@ from openhands.events.observation import (
     UserRejectObservation,
 )
 
-import re
-from openhands.memory.interim_memory import InterimMemory
-from openhands.core.logger import openhands_logger as logger
-# from openhands.core.logger import get_experiment_folder, get_web_docu_folder
-# EXPERIMENT_FOLDER = get_experiment_folder()
-# WEB_DOCU_FOLDER = get_web_docu_folder()
-# from datetime import datetime
-
 from openhands.events.serialization import event_to_dict, observation_from_dict
 from openhands.events.serialization.action import ACTION_TYPE_TO_CLASS
 from openhands.runtime.base import Runtime
@@ -282,28 +274,6 @@ class ActionExecutionClient(Runtime):
                 raise AgentRuntimeTimeoutError(
                     f'Runtime failed to return execute_action before the requested timeout of {action.timeout}s'
                 )
-            
-            # Intercept interim memory commands before sending
-            if isinstance(action, BrowseInteractiveAction):
-                if action.browser_actions.startswith("store_interim_memory"):
-                    match = re.match(r"store_interim_memory\(['\"](.*?)['\"]\)", action.browser_actions)
-                    if match:
-                        argument = str(match.group(1))
-                        InterimMemory.store(argument)
-                        
-                    else:
-                        logger.info(f"[DEBUG ACTION_EXECUTION_CLIENT] Could not parse interim memory content.")
-                    
-
-                elif action.browser_actions.startswith("retrieve_interim_memory"):
-                    interim_memory_string = str(InterimMemory.retrieve())
-                    # logger.info(f"[ACTION_EXECUTION_CLIENT] retrieved interim memory: {interim_memory_string}")
-
-            # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            # obs_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'observation_{timestamp}.txt')
-            # with open(obs_txt_filename, 'w', encoding='utf-8') as f:
-            #         f.write(str(obs))
-            # print("type of obs:", type(obs))
             return obs
 
     def run(self, action: CmdRunAction) -> Observation:

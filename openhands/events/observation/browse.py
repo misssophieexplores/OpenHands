@@ -74,12 +74,12 @@ class BrowserOutputObservation(Observation):
                 )
             else:
                 text += '[Action executed successfully.]\n'
-        if self.include_interim_memory:
-            text += (
-                f'\n================ BEGIN Interim Memory ================\n'
-                f'{self.interim_memory}\n'
-                f'================ END Interim Memory ================\n'
-            )
+            if self.include_interim_memory:
+                text += (
+                    f'\n================ BEGIN Interim Memory ================\n'
+                    f'{self.interim_memory}\n'
+                    f'================ END Interim Memory ================\n'
+                )
             try:
                 # We do not filter visible only here because we want to show the full content
                 # of the web page to the agent for simplicity.

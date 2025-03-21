@@ -5,7 +5,6 @@ import urllib.request
 from datetime import datetime
 
 from openhands.events.action.highlevel_interim_memory import InterimMemoryActionSet
-from openhands.memory.interim_memory import InterimMemory
 from browsergym.utils.obs import flatten_axtree_to_str
 
 from openhands.agenthub.browsing_agent.response_parser import BrowsingResponseParser
@@ -96,7 +95,7 @@ def create_observation_prompt(
 ):
     txt_observation = f"""
 # Observation of current step:
-{tabs}{axtree_txt}{focused_element}{error_prefix}{interim_memory}\
+{interim_memory}{tabs}{axtree_txt}{focused_element}{error_prefix}\n
 """
     print(f"[DEBUGGING VISUAL BROWSING AGENT] create_observation_prompt: {interim_memory}")
     

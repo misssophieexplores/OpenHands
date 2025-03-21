@@ -4,6 +4,7 @@ from browsergym.utils.obs import flatten_axtree_to_str
 
 from openhands.core.schema import ActionType, ObservationType
 from openhands.events.observation.observation import Observation
+import traceback
 
 
 @dataclass
@@ -34,6 +35,10 @@ class BrowserOutputObservation(Observation):
     def __post_init__(self):
         from openhands.memory.interim_memory import InterimMemory
         self.interim_memory = InterimMemory.retrieve()
+        self.post_process_interim_memory()
+        # print('BrowserOutputObservation: interim memory retrieved:', self.interim_memory)
+        # print('BrowserOutputObservation instantiated at:')
+        # traceback.print_stack(limit=5)  # Print where the instance is created
 
 
     
@@ -42,6 +47,7 @@ class BrowserOutputObservation(Observation):
         return 'Visited ' + self.url
 
     def __str__(self) -> str:
+
         ret = (
             '**BrowserOutputObservation**\n'
             f'URL: {self.url}\n'
@@ -119,3 +125,17 @@ class BrowserOutputObservation(Observation):
         )
         return cur_axtree_txt
     
+    def post_process_interim_memory(self):
+        """Removes the error flag for interim memory actions, if any."""
+        # TODO: logic to find errors with interim memory actions
+        if (
+            isinstance(self.last_browser_action, str) and 
+            (
+                self.last_browser_action.strip().startswith("store_interim_memory(")
+                or self.last_browser_action.strip().startswith("retrieve_interim_memory(")
+            )
+        ):
+            self.error = False
+            self.last_browser_action_error = ''
+
+

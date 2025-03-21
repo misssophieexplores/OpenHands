@@ -302,6 +302,7 @@ Note:
         history_prompt = get_history_prompt(prev_actions)
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
+ 
                 self.metrics_tracker.increment_error_count()
                 # Ensure the error is logged before stopping
                 cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'

@@ -12,6 +12,8 @@ class BrowserOutputObservation(Observation):
 
     url: str
     trigger_by_action: str
+    interim_memory: str = ''
+    include_interim_memory: bool = True
     screenshot: str = field(repr=False, default='')  # don't show in repr
     set_of_marks: str = field(default='', repr=False)  # don't show in repr
     error: bool = False
@@ -29,11 +31,20 @@ class BrowserOutputObservation(Observation):
     last_browser_action_error: str = ''
     focused_element_bid: str = ''
 
+    def __post_init__(self):
+        from openhands.memory.interim_memory import InterimMemory
+        self.interim_memory = InterimMemory.retrieve()
+        print(f"[DEBUGGING BROWSER OBSERVATION] __post_init__ -> interim_memory : {self.interim_memory}")
+
+
+    
     @property
     def message(self) -> str:
         return 'Visited ' + self.url
 
     def __str__(self) -> str:
+        print(f"[DEBUGGING BROWSER OBSERVATION] last_browser_action: {self.last_browser_action}")
+
         ret = (
             '**BrowserOutputObservation**\n'
             f'URL: {self.url}\n'
@@ -51,6 +62,7 @@ class BrowserOutputObservation(Observation):
     def get_agent_obs_text(self) -> str:
         """Get a concise text that will be shown to the agent."""
         if self.trigger_by_action == ActionType.BROWSE_INTERACTIVE:
+            # update the interim memory:
             text = f'[Current URL: {self.url}]\n'
             text += f'[Focused element bid: {self.focused_element_bid}]\n\n'
             if self.error:
@@ -62,6 +74,12 @@ class BrowserOutputObservation(Observation):
                 )
             else:
                 text += '[Action executed successfully.]\n'
+        if self.include_interim_memory:
+            text += (
+                f'\n================ BEGIN Interim Memory ================\n'
+                f'{self.interim_memory}\n'
+                f'================ END Interim Memory ================\n'
+            )
             try:
                 # We do not filter visible only here because we want to show the full content
                 # of the web page to the agent for simplicity.
@@ -103,3 +121,14 @@ class BrowserOutputObservation(Observation):
             filter_visible_only=filter_visible_only,
         )
         return cur_axtree_txt
+    
+
+
+    # def update_interim_memory(self):
+    #     if 'store_interim_memory(' in self.last_browser_action:
+    #         print(f"[DEBUGGING BROWSER OBSERVATION] update_interim_memory -> last_browser_action : {self.last_browser_action}\n[DEBUGGING BROWSER OBSERVATION] update_interim_memory -> interim_memory : {self.interim_memory}")
+    #         match = re.search(r'store_interim_memory\((.*?)\)', self.last_browser_action)
+    #         if match:
+    #             params = match.group(1)       # "('content')" or None
+    #         self.interim_memory += params 
+            

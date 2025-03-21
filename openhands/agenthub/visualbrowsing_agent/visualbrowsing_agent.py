@@ -4,7 +4,8 @@ import time
 import urllib.request
 from datetime import datetime
 
-from browsergym.core.action.highlevel import HighLevelActionSet
+from openhands.events.action.highlevel_interim_memory import InterimMemoryActionSet
+from openhands.memory.interim_memory import InterimMemory
 from browsergym.utils.obs import flatten_axtree_to_str
 
 from openhands.agenthub.browsing_agent.response_parser import BrowsingResponseParser
@@ -91,12 +92,14 @@ def create_observation_prompt(
     focused_element: str,
     error_prefix: str,
     som_screenshot: str | None,
+    interim_memory: str,
 ):
     txt_observation = f"""
 # Observation of current step:
-{tabs}{axtree_txt}{focused_element}{error_prefix}
+{tabs}{axtree_txt}{focused_element}{error_prefix}{interim_memory}\
 """
-
+    print(f"[DEBUGGING VISUAL BROWSING AGENT] create_observation_prompt: {interim_memory}")
+    
     # screenshot + som: will be a non-empty string if present in observation
     screenshot_url = None
     if (som_screenshot is not None) and (len(som_screenshot) > 0):
@@ -108,6 +111,11 @@ def create_observation_prompt(
     txt_observation += '\n'
     return txt_observation, screenshot_url
 
+def get_interim_memory(obs: BrowserOutputObservation) -> str:
+    """Retrieves interim memory from observation."""
+    if obs.interim_memory:
+        return f"\n## Currently saved interim results in interim memory:\n{obs.interim_memory}\n"
+    return ''  # Return empty string if no interim memory
 
 def get_tabs(obs: BrowserOutputObservation) -> str:
     prompt_pieces = ['\n## Currently open tabs:']
@@ -133,7 +141,7 @@ Note: You can only interact with visible elements. If the "visible" tag is not p
     return f'\n## AXTree:\n{bid_info}{visible_tag_info}{axtree_txt}\n'
 
 
-def get_action_prompt(action_set: HighLevelActionSet) -> str:
+def get_action_prompt(action_set: InterimMemoryActionSet) -> str:
     action_set_generic_info = """\
 Note: This action set allows you to interact with your environment. Most of them are python function executing playwright code. The primary way of referring to elements in the page is through bid which are specified in your observations.
 
@@ -190,7 +198,7 @@ class VisualBrowsingAgent(Agent):
             'tab',
             'infeas',
         ]
-        self.action_space = HighLevelActionSet(
+        self.action_space = InterimMemoryActionSet(
             subsets=action_subsets,
             strict=False,  # less strict on the parsing of the actions
             multiaction=False,
@@ -206,14 +214,23 @@ You must mandatorily think step by step. If you need to make calculations such a
         self.concrete_example = """
 # Concrete Example
 
-Here is a concrete example of how to format your answer. Make sure to generate the action in the correct format ensuring that the action is present inside ``````:
+Here is a concrete example of how to format your answer. Make sure to generate the action in the correct format, ensuring that the action is present inside ``````:
 
-Let's think step-by-step. From previous action I tried to set the value of year to "2022", using select_option, but it doesn't appear to be in the form. It may be a dynamic dropdown, I will try using click with the bid "324" and look at the response from the page. In summary the next action I will perform is ```click('324')```
+## Example 1: Handling UI interactions
+Let's think step-by-step. From the previous action, I tried to set the value of year to "2022" using select_option, but it doesn't appear to be in the form. It may be a dynamic dropdown, so I will try using click with the bid "324" and look at the response from the page.
+
+In summary, the next action I will perform is ```click('324')```
+
+---
+
+## Example 2: Storing partial answers in Interim Memory
+The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilty information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345'), scroll(0, 1000)```
 """
         self.hints = """
 Note:
 * Make sure to use bid to identify elements when using commands.
-* Interacting with combobox, dropdowns and auto-complete fields can be tricky, sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
+* Interacting with comboboxes, dropdowns, and auto-complete fields can be tricky; sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
+* Use interim memory to store relevant information. Retrieve stored information before finalizing the answer.
 
 """
         self.reset()
@@ -247,6 +264,8 @@ Note:
         tabs = ''
         last_obs = None
         last_action = None
+        interim_memory = ''
+        include_interim_memory: bool = True # TODO: duplicate to observation.browse.py?
 
         if len(state.history) == 1:
             # for visualwebarena, webarena and miniwob++ eval, we need to retrieve the initial observation already in browser env
@@ -308,12 +327,12 @@ Note:
                             'Too many errors encountered. Task failed.'
                         )
             focused_element = '## Focused element:\nNone\n'
+
             if last_obs.focused_element_bid is not None:
                 focused_element = (
                     f"## Focused element:\nbid='{last_obs.focused_element_bid}'\n"
                 )
             tabs = get_tabs(last_obs)
-            ###
             cur_url_str = last_obs.url if hasattr(last_obs, 'url') else ''
 
             last_action_str = (
@@ -321,6 +340,10 @@ Note:
                 if hasattr(last_obs, 'last_browser_action')
                 else ''
             )
+            # TODO: change retrieval based on last_actiion_str:
+            if include_interim_memory:
+                interim_memory = get_interim_memory(last_obs) 
+                print(f"[DEBUGGING VISUAL BROWSING AGENT] interim_memory updated: {interim_memory}")
 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
@@ -354,8 +377,16 @@ Note:
             self.metrics_tracker.set_query(goal)
         goal_txt, goal_images = create_goal_prompt(goal, image_urls)
         observation_txt, som_screenshot = create_observation_prompt(
-            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
+            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks, interim_memory #TODO: when and from where to retrieve it? From observation or from InterimMemory directly?
         )
+        #DEBUGGIN ONLY:
+        # save observation_txt to file:
+        observation_txt_filename = os.path.join(
+            WEB_DOCU_FOLDER, f'observation_{self.page_counter}.txt'
+        )
+        with open(observation_txt_filename, 'w', encoding='utf-8') as f:
+            f.write(observation_txt)
+
         # Save screenshot if available
         if som_screenshot is not None and len(som_screenshot) > 0:
             screenshot_filename = os.path.join(

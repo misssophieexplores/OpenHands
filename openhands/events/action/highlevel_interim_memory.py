@@ -8,7 +8,6 @@ class InterimMemoryActionSet(HighLevelActionSet):
     """Extends HighLevelActionSet to include interim memory actions."""
 
     def __init__(self, subsets=None, strict=False, multiaction=False, custom_actions=None):
-        logger.info(f"[DEBUGGING HIGHLEVEL INTERIM MEMORY] InterimMemoryActionSet initialized")
         if subsets is None:
             subsets = ["custom"] 
         # Preserve existing custom actions while adding new ones
@@ -18,11 +17,7 @@ class InterimMemoryActionSet(HighLevelActionSet):
         if "custom" not in subsets:
             subsets.append("custom")
 
-        # super().__init__(subsets=subsets, strict=strict, multiaction=multiaction)
-        # self.action_set = InterimMemoryActionSet()
         super().__init__(subsets=subsets, strict=strict, multiaction=multiaction, custom_actions=custom_actions)
-        logger.info(f"[DEBUG] Available high-level actions: {list(self.action_set.keys())}")
-
 
 
 
@@ -42,7 +37,6 @@ class InterimMemoryActionSet(HighLevelActionSet):
         Examples:
             store_interim_memory("User's selected product: Product A")
         """
-        logger.info(f"[DEBUGGING HIGHLEVEL INTERIM MEMORY] store_interim_memory called with content: {content}")
         InterimMemory.store(content)
 
     def retrieve_interim_memory(self):
@@ -51,5 +45,4 @@ class InterimMemoryActionSet(HighLevelActionSet):
         Examples:
             retrieve_interim_memory()
         """
-        logger.info(f"[DEBUGGING HIGHLEVEL INTERIM MEMORY] retrieve_interim_memory called")
         return InterimMemory.retrieve()

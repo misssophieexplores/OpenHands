@@ -97,8 +97,7 @@ def create_observation_prompt(
 # Observation of current step:
 {interim_memory}{tabs}{axtree_txt}{focused_element}{error_prefix}\n
 """
-    print(f"[DEBUGGING VISUAL BROWSING AGENT] create_observation_prompt: {interim_memory}")
-    
+   
     # screenshot + som: will be a non-empty string if present in observation
     screenshot_url = None
     if (som_screenshot is not None) and (len(som_screenshot) > 0):
@@ -113,7 +112,7 @@ def create_observation_prompt(
 def get_interim_memory(obs: BrowserOutputObservation) -> str:
     """Retrieves interim memory from observation."""
     if obs.interim_memory:
-        return f"\n## Currently saved interim results in interim memory:\n{obs.interim_memory}\n"
+        return f"\n## Interim Results (do not re-store information already listed here):\n{obs.interim_memory}\n"
     return ''  # Return empty string if no interim memory
 
 def get_tabs(obs: BrowserOutputObservation) -> str:
@@ -185,7 +184,7 @@ class VisualBrowsingAgent(Agent):
         super().__init__(llm, config)
         self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
-            model_name=llm.config.model, agent_name='openhands_visual_browsing_agent'
+            model_name=llm.config.model, agent_name='openhands_memory_visual_browsing_agent'
         )
 
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
@@ -264,7 +263,7 @@ Note:
         last_obs = None
         last_action = None
         interim_memory = ''
-        include_interim_memory: bool = True # TODO: duplicate to observation.browse.py?
+        include_interim_memory: bool = False
 
         if len(state.history) == 1:
             # for visualwebarena, webarena and miniwob++ eval, we need to retrieve the initial observation already in browser env
@@ -287,6 +286,7 @@ Note:
                 return AgentFinishAction(outputs={'content': event.content})
             elif isinstance(event, Observation):
                 last_obs = event
+
 
         if len(prev_actions) >= 1:  # ignore noop()
             prev_actions = prev_actions[1:]  # remove the first noop action
@@ -339,10 +339,13 @@ Note:
                 if hasattr(last_obs, 'last_browser_action')
                 else ''
             )
-            # TODO: change retrieval based on last_actiion_str:
+
+            # change retrieval based on last_actiion_str:
+            if 'store_interim_memory(' in last_action_str or 'retrieve_interim_memory(' in last_action_str:
+                include_interim_memory = True
+
             if include_interim_memory:
                 interim_memory = get_interim_memory(last_obs) 
-                print(f"[DEBUGGING VISUAL BROWSING AGENT] interim_memory updated: {interim_memory}")
 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
@@ -380,9 +383,7 @@ Note:
         )
         #DEBUGGIN ONLY:
         # save observation_txt to file:
-        observation_txt_filename = os.path.join(
-            WEB_DOCU_FOLDER, f'observation_{self.page_counter}.txt'
-        )
+        observation_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'observation_{self.page_counter}.txt')
         with open(observation_txt_filename, 'w', encoding='utf-8') as f:
             f.write(observation_txt)
 
@@ -396,7 +397,6 @@ Note:
 
             try:
                 urllib.request.urlretrieve(som_screenshot, screenshot_filename)
-                logger.info(f'Saved screenshot to {screenshot_filename}')
             except Exception as e:
                 logger.error(f'Failed to save screenshot: {e}')
 
@@ -441,6 +441,16 @@ You are an agent trying to solve a web task based on the content of the page and
         flat_messages = self.llm.format_messages_for_llm(messages)
 
         self.metrics_tracker.increment_model_calls()  # increment model call count
+
+        #DEBUGGIN ONLY:
+        # save observation_txt to file:
+        flat_messages_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'flat_messages_{self.page_counter}.txt')
+        with open(flat_messages_txt_filename, 'w', encoding='utf-8') as f:
+                for line in flat_messages:
+                    f.write(f"{line}\n")
+
+
+
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,

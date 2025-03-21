@@ -34,7 +34,6 @@ class BrowserOutputObservation(Observation):
     def __post_init__(self):
         from openhands.memory.interim_memory import InterimMemory
         self.interim_memory = InterimMemory.retrieve()
-        print(f"[DEBUGGING BROWSER OBSERVATION] __post_init__ -> interim_memory : {self.interim_memory}")
 
 
     
@@ -43,8 +42,6 @@ class BrowserOutputObservation(Observation):
         return 'Visited ' + self.url
 
     def __str__(self) -> str:
-        print(f"[DEBUGGING BROWSER OBSERVATION] last_browser_action: {self.last_browser_action}")
-
         ret = (
             '**BrowserOutputObservation**\n'
             f'URL: {self.url}\n'
@@ -122,13 +119,3 @@ class BrowserOutputObservation(Observation):
         )
         return cur_axtree_txt
     
-
-
-    # def update_interim_memory(self):
-    #     if 'store_interim_memory(' in self.last_browser_action:
-    #         print(f"[DEBUGGING BROWSER OBSERVATION] update_interim_memory -> last_browser_action : {self.last_browser_action}\n[DEBUGGING BROWSER OBSERVATION] update_interim_memory -> interim_memory : {self.interim_memory}")
-    #         match = re.search(r'store_interim_memory\((.*?)\)', self.last_browser_action)
-    #         if match:
-    #             params = match.group(1)       # "('content')" or None
-    #         self.interim_memory += params 
-            

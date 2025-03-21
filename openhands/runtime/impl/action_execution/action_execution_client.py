@@ -34,12 +34,11 @@ from openhands.events.observation import (
     Observation,
     UserRejectObservation,
 )
-###
-from openhands.events.observation import BrowserOutputObservation
+
 import re
 from openhands.memory.interim_memory import InterimMemory
-from openhands.core.schema import ActionType
-###
+from openhands.core.logger import openhands_logger as logger
+
 from openhands.events.serialization import event_to_dict, observation_from_dict
 from openhands.events.serialization.action import ACTION_TYPE_TO_CLASS
 from openhands.runtime.base import Runtime
@@ -225,41 +224,21 @@ class ActionExecutionClient(Runtime):
             return ''
 
     def send_action_for_execution(self, action: Action) -> Observation:
-        ###
-        print(f"\n[DEBUG ACTION_EXECUTION_CLIENT] send_action_for_execution: {action}\n")
         # Intercept interim memory commands before sending
         if isinstance(action, BrowseInteractiveAction):
             if action.browser_actions.startswith("store_interim_memory"):
-                print(f"\n[DEBUG ACTION_EXECUTION_CLIENT] type(action) {type(action)}\n")
                 match = re.match(r"store_interim_memory\(['\"](.*?)['\"]\)", action.browser_actions)
                 if match:
                     argument = str(match.group(1))
                     InterimMemory.store(argument)
-                    print(f"[DEBUG] Stored interim memory: {argument}")
                 else:
-                    print("[DEBUG] Could not parse interim memory content.")
-
-                return BrowserOutputObservation(
-                    url="about:blank",
-                    trigger_by_action=ActionType.BROWSE_INTERACTIVE,
-                    last_browser_action=action.browser_actions,
-                    interim_memory=InterimMemory.retrieve(),
-                    content=f"Stored interim memory: {argument}",
-                )
+                    logger.info(f"[DEBUG ACTION_EXECUTION_CLIENT] Could not parse interim memory content.")
+                
 
             elif action.browser_actions.startswith("retrieve_interim_memory"):
-                print(f"[DEBUG] Trying to retrieve interim memory")
                 interim_memory_string = str(InterimMemory.retrieve())
-                print(f"[DEBUG] Retrieve interim memory: {interim_memory_string}")
+                logger.info(f"[ACTION_EXECUTION_CLIENT] retrieved interim memory: {interim_memory_string}")
 
-                return BrowserOutputObservation(
-                    url="about:blank",
-                    trigger_by_action=ActionType.BROWSE_INTERACTIVE,
-                    last_browser_action=action.browser_actions,
-                    interim_memory=interim_memory_string,
-                    content=f"Retrieved interim memory: {interim_memory_string}",
-                )
-        ###
         if (
             isinstance(action, FileEditAction)
             and action.impl_source == FileEditSource.LLM_BASED_EDIT

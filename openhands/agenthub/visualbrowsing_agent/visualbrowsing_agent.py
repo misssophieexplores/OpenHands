@@ -222,7 +222,7 @@ In summary, the next action I will perform is ```click('324')```
 ---
 
 ## Example 2: Storing partial answers in Interim Memory
-The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilty information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345'), scroll(0, 1000)```
+The user asked me to find the price, availability, and product ID for multiple products. I have found the price and product ID for Product A, but not its availability yet. Since this is part of the final answer, I will store the details I have so far before continuing searching for the availabilty information. In summary, the next action I will perform is ```store_interim_memory('Product A - Price: $49.99, Product ID: 12345')```
 """
         self.hints = """
 Note:

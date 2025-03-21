@@ -70,9 +70,6 @@ class MetricsTracker:
 
     def track_visited_url(self, url: str, action_type: str):
         """Track visited URLs and count occurrences, ignoring None values."""
-        # if url == 'about:blank':  # Skip tracking if the URL is missing
-        #     return
-
         if url not in self.visited_urls:
             self.visited_urls[url] = {
                 'visits': 0,

@@ -237,7 +237,7 @@ class ActionExecutionClient(Runtime):
 
             elif action.browser_actions.startswith("retrieve_interim_memory"):
                 interim_memory_string = str(InterimMemory.retrieve())
-                logger.info(f"[ACTION_EXECUTION_CLIENT] retrieved interim memory: {interim_memory_string}")
+                # logger.info(f"[ACTION_EXECUTION_CLIENT] retrieved interim memory: {interim_memory_string}")
 
         if (
             isinstance(action, FileEditAction)

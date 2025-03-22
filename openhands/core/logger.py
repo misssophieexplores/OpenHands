@@ -4,6 +4,8 @@ import os
 import re
 import sys
 import traceback
+
+###
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal, Mapping, TextIO
@@ -11,6 +13,8 @@ from typing import Any, Literal, Mapping, TextIO
 import litellm
 from pythonjsonlogger.json import JsonFormatter
 from termcolor import colored
+
+###
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 DEBUG = os.getenv('DEBUG', 'False').lower() in ['true', '1', 'yes']
@@ -42,10 +46,10 @@ else:
 if DEBUG:
     LOG_LEVEL = 'DEBUG'
 
-LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'False').lower() in ['true', '1', 'yes']
+LOG_TO_FILE = True  # LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'False').lower() in ['true', '1', 'yes']
 DISABLE_COLOR_PRINTING = False
 
-LOG_ALL_EVENTS = os.getenv('LOG_ALL_EVENTS', 'False').lower() in ['true', '1', 'yes']
+LOG_ALL_EVENTS = True  # LOG_ALL_EVENTS = os.getenv('LOG_ALL_EVENTS', 'False').lower() in ['true', '1', 'yes']
 
 # Controls whether to stream Docker container logs
 DEBUG_RUNTIME = os.getenv('DEBUG_RUNTIME', 'False').lower() in ['true', '1', 'yes']
@@ -293,8 +297,8 @@ def get_file_handler(
 ) -> logging.FileHandler:
     """Returns a file handler for logging."""
     os.makedirs(log_dir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y-%m-%d')
-    file_name = f'openhands_{timestamp}.log'
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+    file_name = f'{timestamp}.log'
     file_handler = logging.FileHandler(os.path.join(log_dir, file_name))
     file_handler.setLevel(log_level)
     if LOG_JSON:
@@ -373,11 +377,18 @@ openhands_logger.addFilter(SensitiveDataFilter(openhands_logger.name))
 openhands_logger.propagate = False
 openhands_logger.debug('Logging initialized')
 
-LOG_DIR = os.path.join(
-    # parent dir of openhands/core (i.e., root of the repo)
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    'logs',
-)
+###
+# Create a single timestamp-based experiment folder
+TIMESTAMP = datetime.now().strftime('%Y-%m-%d_%H-%M')
+FOLDER_NAME = f'openhands_{TIMESTAMP}'
+EXPERIMENT_FOLDER = os.path.join('logs', FOLDER_NAME)
+WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
+
+# Ensure folders exist
+os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
+
+LOG_DIR = EXPERIMENT_FOLDER  # Redirect logs to the main folder
+###
 
 if LOG_TO_FILE:
     openhands_logger.addHandler(
@@ -462,6 +473,14 @@ def _setup_llm_logger(name: str, log_level: int) -> logging.Logger:
     if LOG_TO_FILE:
         logger.addHandler(_get_llm_file_handler(name, log_level))
     return logger
+
+
+def get_experiment_folder():
+    return EXPERIMENT_FOLDER
+
+
+def get_web_docu_folder():
+    return WEB_DOCU_FOLDER
 
 
 llm_prompt_logger = _setup_llm_logger('prompt', current_log_level)

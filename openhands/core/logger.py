@@ -5,15 +5,12 @@ import re
 import sys
 import traceback
 
-###
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal, Mapping
 
 import litellm
 from termcolor import colored
-
-###
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 DEBUG = os.getenv('DEBUG', 'False').lower() in ['true', '1', 'yes']
@@ -305,7 +302,7 @@ openhands_logger.addFilter(SensitiveDataFilter(openhands_logger.name))
 openhands_logger.propagate = False
 openhands_logger.debug('Logging initialized')
 
-###
+
 # Create a single timestamp-based experiment folder
 TIMESTAMP = datetime.now().strftime('%Y-%m-%d_%H-%M')
 FOLDER_NAME = f'openhands_{TIMESTAMP}'
@@ -316,7 +313,7 @@ WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
 os.makedirs(WEB_DOCU_FOLDER, exist_ok=True)
 
 LOG_DIR = EXPERIMENT_FOLDER  # Redirect logs to the main folder
-###
+
 
 if LOG_TO_FILE:
     openhands_logger.addHandler(

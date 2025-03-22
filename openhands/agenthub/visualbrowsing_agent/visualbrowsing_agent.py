@@ -362,23 +362,20 @@ Note:
 
         # Save screenshot if available
         if som_screenshot is not None and len(som_screenshot) > 0:
-            timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
             screenshot_filename = os.path.join(
                 WEB_DOCU_FOLDER,
-                f'{timestamp_som}_screenshot_{self.page_counter}.png',
-            )  # save screenshot with timestamp
+                f'screenshot_{self.page_counter}.png',
+            )  # save screenshot 
             self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
 
             try:
                 urllib.request.urlretrieve(som_screenshot, screenshot_filename)
-                logger.info(f'Saved screenshot to {screenshot_filename}')
             except Exception as e:
                 logger.error(f'Failed to save screenshot: {e}')
 
         # Save the webpage structure (AXTree) and interaction history
-        timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
         content_filename = os.path.join(
-            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{self.page_counter}.txt'
+            WEB_DOCU_FOLDER, f'webpage_{self.page_counter}.txt'
         )
         with open(content_filename, 'w', encoding='utf-8') as f:
             f.write('==== PAGE URL ====\n')

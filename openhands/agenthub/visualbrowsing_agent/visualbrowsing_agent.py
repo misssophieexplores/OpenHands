@@ -293,20 +293,20 @@ Note:
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs)
                 if len(error_prefix) > 0:
-                    # Ensure the error is logged before stopping
-                    cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
-                    last_action_str = (
-                        last_obs.last_browser_action
-                        if hasattr(last_obs, 'last_browser_action')
-                        else 'unknown'
-                    )
-
-                    log_url_action_json(
-                        url=cur_url_str, action=last_action_str
-                    )  # Log before exiting
-                    self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
-                    self.error_accumulator += 1
                     if self.error_accumulator > 10:
+                        # Ensure the error is logged before stopping
+                        cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
+                        last_action_str = (
+                            last_obs.last_browser_action
+                            if hasattr(last_obs, 'last_browser_action')
+                            else 'unknown'
+                        )
+
+                        log_url_action_json(
+                            url=cur_url_str, action=last_action_str
+                        )  # Log before exiting
+                        self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
+                        self.error_accumulator += 1
                         self.metrics_tracker.save_metrics()
                         return MessageAction(
                             'Too many errors encountered. Task failed.'

@@ -40,7 +40,11 @@ from openhands.runtime.base import Runtime
 from openhands.runtime.plugins import PluginRequirement
 from openhands.runtime.utils.request import send_request
 from openhands.utils.http_session import HttpSession
-
+from datetime import datetime
+from openhands.core.logger import get_experiment_folder, get_web_docu_folder
+EXPERIMENT_FOLDER = get_experiment_folder()
+WEB_DOCU_FOLDER = get_web_docu_folder()
+URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
 
 class ActionExecutionClient(Runtime):
     """Base class for runtimes that interact with the action execution server.
@@ -274,6 +278,13 @@ class ActionExecutionClient(Runtime):
                 raise AgentRuntimeTimeoutError(
                     f'Runtime failed to return execute_action before the requested timeout of {action.timeout}s'
                 )
+            # save obs to text
+            timestamp = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+            obs_filename = os.path.join(
+                WEB_DOCU_FOLDER, f'flat_messages_{timestamp}.txt'
+            )
+            with open(obs_filename, 'w', encoding='utf-8') as f:
+                f.write(str(obs))
             return obs
 
     def run(self, action: CmdRunAction) -> Observation:

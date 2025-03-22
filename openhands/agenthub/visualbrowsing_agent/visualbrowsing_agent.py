@@ -416,6 +416,13 @@ You are an agent trying to solve a web task based on the content of the page and
         flat_messages = self.llm.format_messages_for_llm(messages)
 
         self.metrics_tracker.increment_model_calls()  # increment model call count
+        # save flat_messages
+        flat_messages_filename = os.path.join(
+            WEB_DOCU_FOLDER, f'flat_messages_{self.page_counter}.txt'
+        )
+        with open(flat_messages_filename, 'w', encoding='utf-8') as f:
+            for message in messages:
+                f.write(f" {message}\n")
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,

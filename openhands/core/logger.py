@@ -5,15 +5,14 @@ import re
 import sys
 import traceback
 
-###
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal, Mapping
 
 import litellm
 from termcolor import colored
+from dotenv import load_dotenv
 
-###
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 DEBUG = os.getenv('DEBUG', 'False').lower() in ['true', '1', 'yes']
@@ -307,9 +306,13 @@ openhands_logger.debug('Logging initialized')
 
 ###
 # Create a single timestamp-based experiment folder
+EXPERIMENT_ROOT = os.getenv('EXPERIMENT_ROOT_PATH')
+if not EXPERIMENT_ROOT:
+    raise ValueError("EXPERIMENT_ROOT_PATH is not set in the .env file.")
+
 TIMESTAMP = datetime.now().strftime('%Y-%m-%d_%H-%M')
 FOLDER_NAME = f'openhands_{TIMESTAMP}'
-EXPERIMENT_FOLDER = os.path.join('logs', FOLDER_NAME)
+EXPERIMENT_FOLDER = os.path.join(EXPERIMENT_ROOT, FOLDER_NAME)
 WEB_DOCU_FOLDER = os.path.join(EXPERIMENT_FOLDER, 'web_docu')
 
 # Ensure folders exist

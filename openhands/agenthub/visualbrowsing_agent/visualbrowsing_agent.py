@@ -1,6 +1,7 @@
 import json
 import os
 import time
+
 import urllib.request
 from datetime import datetime
 
@@ -68,7 +69,9 @@ def get_error_prefix(obs: BrowserOutputObservation) -> str:
     return f'## Error from previous action:\n{obs.last_browser_action_error}\n'
 
 
-def create_goal_prompt(goal: str, image_urls: list[str] | None):
+def create_goal_prompt(
+    goal: str, image_urls: list[str] | None
+) -> tuple[str, list[str]]:
     goal_txt: str = f"""\
 # Instructions
 Review the current state of the page and all other information to find the best possible next action to accomplish your goal. Your answer will be interpreted and executed by a program, make sure to follow the formatting instructions.
@@ -91,12 +94,12 @@ def create_observation_prompt(
     focused_element: str,
     error_prefix: str,
     som_screenshot: str | None,
-):
+) -> tuple[str, str | None]:
     txt_observation = f"""
 # Observation of current step:
-{tabs}{axtree_txt}{focused_element}{error_prefix}\n
+{tabs}{axtree_txt}{focused_element}{error_prefix}
 """
-   
+
     # screenshot + som: will be a non-empty string if present in observation
     screenshot_url = None
     if (som_screenshot is not None) and (len(som_screenshot) > 0):
@@ -107,6 +110,7 @@ def create_observation_prompt(
         logger.info('SOM Screenshot not present in observation!')
     txt_observation += '\n'
     return txt_observation, screenshot_url
+
 
 def get_tabs(obs: BrowserOutputObservation) -> str:
     prompt_pieces = ['\n## Currently open tabs:']
@@ -175,6 +179,7 @@ class VisualBrowsingAgent(Agent):
         - llm (LLM): The llm to be used by this agent
         """
         super().__init__(llm, config)
+
         self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
             model_name=llm.config.model, agent_name='openhands_visual_browsing_agent'
@@ -205,18 +210,15 @@ You must mandatorily think step by step. If you need to make calculations such a
         self.concrete_example = """
 # Concrete Example
 
-Here is a concrete example of how to format your answer. Make sure to generate the action in the correct format, ensuring that the action is present inside ``````:
+Here is a concrete example of how to format your answer. Make sure to generate the action in the correct format ensuring that the action is present inside ``````:
 
-## Example: Handling UI interactions
-Let's think step-by-step. From the previous action, I tried to set the value of year to "2022" using select_option, but it doesn't appear to be in the form. It may be a dynamic dropdown, so I will try using click with the bid "324" and look at the response from the page.
-
-In summary, the next action I will perform is ```click('324')```
-
+Let's think step-by-step. From previous action I tried to set the value of year to "2022", using select_option, but it doesn't appear to be in the form. It may be a dynamic dropdown, I will try using click with the bid "324" and look at the response from the page. In summary the next action I will perform is ```click('324')```
 """
         self.hints = """
 Note:
 * Make sure to use bid to identify elements when using commands.
-* Interacting with comboboxes, dropdowns, and auto-complete fields can be tricky; sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
+* Interacting with combobox, dropdowns and auto-complete fields can be tricky, sometimes you need to use select_option, while other times you need to use fill or click and wait for the reaction of the page.
+
 """
         self.reset()
 
@@ -272,7 +274,6 @@ Note:
             elif isinstance(event, Observation):
                 last_obs = event
 
-
         if len(prev_actions) >= 1:  # ignore noop()
             prev_actions = prev_actions[1:]  # remove the first noop action
 
@@ -287,24 +288,23 @@ Note:
         history_prompt = get_history_prompt(prev_actions)
         if isinstance(last_obs, BrowserOutputObservation):
             if last_obs.error:
- 
                 self.metrics_tracker.increment_error_count()
-                # Ensure the error is logged before stopping
-                cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
-                last_action_str = (
-                    last_obs.last_browser_action
-                    if hasattr(last_obs, 'last_browser_action')
-                    else 'unknown'
-                )
-
-                log_url_action_json(
-                    url=cur_url_str, action=last_action_str
-                )  # Log before exiting
-                self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
 
                 # add error recovery prompt prefix
                 error_prefix = get_error_prefix(last_obs)
                 if len(error_prefix) > 0:
+                    # Ensure the error is logged before stopping
+                    cur_url_str = last_obs.url if hasattr(last_obs, 'url') else 'unknown'
+                    last_action_str = (
+                        last_obs.last_browser_action
+                        if hasattr(last_obs, 'last_browser_action')
+                        else 'unknown'
+                    )
+
+                    log_url_action_json(
+                        url=cur_url_str, action=last_action_str
+                    )  # Log before exiting
+                    self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
                     self.error_accumulator += 1
                     if self.error_accumulator > 10:
                         self.metrics_tracker.save_metrics()
@@ -312,7 +312,6 @@ Note:
                             'Too many errors encountered. Task failed.'
                         )
             focused_element = '## Focused element:\nNone\n'
-
             if last_obs.focused_element_bid is not None:
                 focused_element = (
                     f"## Focused element:\nbid='{last_obs.focused_element_bid}'\n"
@@ -325,7 +324,6 @@ Note:
                 if hasattr(last_obs, 'last_browser_action')
                 else ''
             )
-
 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
@@ -361,29 +359,26 @@ Note:
         observation_txt, som_screenshot = create_observation_prompt(
             cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
         )
-        #DEBUGGIN ONLY:
-        # save observation_txt to file:
-        observation_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'observation_{self.page_counter}.txt')
-        with open(observation_txt_filename, 'w', encoding='utf-8') as f:
-            f.write(observation_txt)
 
         # Save screenshot if available
         if som_screenshot is not None and len(som_screenshot) > 0:
+            timestamp_som = datetime.now().strftime('%Y-%m-%d_%H-%M')
             screenshot_filename = os.path.join(
                 WEB_DOCU_FOLDER,
-                f'screenshot_{self.page_counter}.png',
+                f'{timestamp_som}_screenshot_{self.page_counter}.png',
             )  # save screenshot with timestamp
             self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
 
             try:
                 urllib.request.urlretrieve(som_screenshot, screenshot_filename)
+                logger.info(f'Saved screenshot to {screenshot_filename}')
             except Exception as e:
                 logger.error(f'Failed to save screenshot: {e}')
 
         # Save the webpage structure (AXTree) and interaction history
-
+        timestamp_web = datetime.now().strftime('%Y-%m-%d_%H-%M')
         content_filename = os.path.join(
-            WEB_DOCU_FOLDER, f'webpage_{self.page_counter}.txt'
+            WEB_DOCU_FOLDER, f'{timestamp_web}_webpage_{self.page_counter}.txt'
         )
         with open(content_filename, 'w', encoding='utf-8') as f:
             f.write('==== PAGE URL ====\n')
@@ -396,7 +391,10 @@ Note:
             # f.write("==== PREVIOUS ACTIONS ====\n")
             # f.write(history_prompt + "\n")
         self.page_counter += 1
-        human_prompt = [TextContent(type='text', text=goal_txt)]
+
+        human_prompt: list[TextContent | ImageContent] = [
+            TextContent(type='text', text=goal_txt)
+        ]
         if len(goal_images) > 0:
             human_prompt.append(ImageContent(image_urls=goal_images))
         human_prompt.append(TextContent(type='text', text=observation_txt))
@@ -421,21 +419,12 @@ You are an agent trying to solve a web task based on the content of the page and
         flat_messages = self.llm.format_messages_for_llm(messages)
 
         self.metrics_tracker.increment_model_calls()  # increment model call count
-
-        #DEBUGGIN ONLY:
-        # save observation_txt to file:
-        flat_messages_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'flat_messages_{self.page_counter}.txt')
-        with open(flat_messages_txt_filename, 'w', encoding='utf-8') as f:
-                for line in flat_messages:
-                    f.write(f"{line}\n")
-
-
-
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,
             stop=[')```', ')\n```'],
         )
+
         # Extract token usage from the response object
         if hasattr(response, 'usage'):
             input_tokens = response.usage.get('prompt_tokens', 0)
@@ -443,4 +432,5 @@ You are an agent trying to solve a web task based on the content of the page and
 
         # Record metrics before returning
         self.metrics_tracker.record_step(step_start_time, input_tokens, output_tokens)
+
         return self.response_parser.parse(response)

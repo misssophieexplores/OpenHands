@@ -10,7 +10,7 @@ on:
         required: true
         default: ''
   schedule:
-    - cron: '30 22 * * *'  # Runs at 10:30pm UTC every day
+    # - cron: '30 22 * * *'  # Runs at 10:30pm UTC every day
 
 env:
   N_PROCESSES: 10 # Global configuration for number of parallel processes for evaluation

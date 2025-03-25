@@ -14,7 +14,7 @@ class BrowserOutputObservation(Observation):
     url: str
     trigger_by_action: str
     interim_memory: str = ''
-    include_interim_memory: bool = True
+    include_interim_memory: bool = False
     screenshot: str = field(repr=False, default='')  # don't show in repr
     set_of_marks: str = field(default='', repr=False)  # don't show in repr
     error: bool = False
@@ -47,6 +47,8 @@ class BrowserOutputObservation(Observation):
         return 'Visited ' + self.url
 
     def __str__(self) -> str:
+        if 'store_interim_memory' in self.last_browser_action or 'retrieve_interim_memory' in self.last_browser_action:
+            self.include_interim_memory = True
 
         ret = (
             '**BrowserOutputObservation**\n'
@@ -66,6 +68,7 @@ class BrowserOutputObservation(Observation):
         """Get a concise text that will be shown to the agent."""
         if self.trigger_by_action == ActionType.BROWSE_INTERACTIVE:
             # update the interim memory:
+
             text = f'[Current URL: {self.url}]\n'
             text += f'[Focused element bid: {self.focused_element_bid}]\n\n'
             if self.error:

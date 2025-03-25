@@ -37,10 +37,10 @@ from openhands.events.observation import (
 import re
 from openhands.memory.interim_memory import InterimMemory
 from openhands.core.logger import openhands_logger as logger
-# from openhands.core.logger import get_experiment_folder, get_web_docu_folder
-# EXPERIMENT_FOLDER = get_experiment_folder()
-# WEB_DOCU_FOLDER = get_web_docu_folder()
-# from datetime import datetime
+from openhands.core.logger import get_experiment_folder, get_web_docu_folder
+EXPERIMENT_FOLDER = get_experiment_folder()
+WEB_DOCU_FOLDER = get_web_docu_folder()
+from datetime import datetime
 
 from openhands.events.serialization import event_to_dict, observation_from_dict
 from openhands.events.serialization.action import ACTION_TYPE_TO_CLASS
@@ -297,13 +297,12 @@ class ActionExecutionClient(Runtime):
 
                 elif action.browser_actions.startswith("retrieve_interim_memory"):
                     interim_memory_string = str(InterimMemory.retrieve())
-                    # logger.info(f"[ACTION_EXECUTION_CLIENT] retrieved interim memory: {interim_memory_string}")
+                    logger.info(f"[ACTION_EXECUTION_CLIENT] retrieved interim memory: {interim_memory_string}")
 
-            # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            # obs_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'observation_{timestamp}.txt')
-            # with open(obs_txt_filename, 'w', encoding='utf-8') as f:
-            #         f.write(str(obs))
-            # print("type of obs:", type(obs))
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            obs_txt_filename = os.path.join(WEB_DOCU_FOLDER, f'observation_{timestamp}.txt')
+            with open(obs_txt_filename, 'w', encoding='utf-8') as f:
+                    f.write(str(obs))
             return obs
 
     def run(self, action: CmdRunAction) -> Observation:

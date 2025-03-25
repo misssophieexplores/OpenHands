@@ -18,6 +18,7 @@ class InterimMemoryActionSet(HighLevelActionSet):
             subsets.append("custom")
 
         super().__init__(subsets=subsets, strict=strict, multiaction=multiaction, custom_actions=custom_actions)
+        logger.info(f"[HIGHLEVEL INTERIM MEMORY] Available high-level actions: {list(self.action_set.keys())}")
 
 
 

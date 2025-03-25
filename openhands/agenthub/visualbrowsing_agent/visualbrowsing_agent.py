@@ -94,7 +94,8 @@ def create_observation_prompt(
     focused_element: str,
     error_prefix: str,
     som_screenshot: str | None,
-) -> tuple[str, str | None]:
+    interim_memory: str,
+):
     txt_observation = f"""
 # Observation of current step:
 {interim_memory}{tabs}{axtree_txt}{focused_element}{error_prefix}\n
@@ -111,6 +112,11 @@ def create_observation_prompt(
     txt_observation += '\n'
     return txt_observation, screenshot_url
 
+def get_interim_memory(obs: BrowserOutputObservation) -> str:
+    """Retrieves interim memory from observation."""
+    if obs.interim_memory:
+        return f"\n## Interim Results (do not re-store information already listed here):\n{obs.interim_memory}\n"
+    return ''  # Return empty string if no interim memory
 
 def get_tabs(obs: BrowserOutputObservation) -> str:
     prompt_pieces = ['\n## Currently open tabs:']
@@ -432,6 +438,12 @@ You are an agent trying to solve a web task based on the content of the page and
         flat_messages = self.llm.format_messages_for_llm(messages)
 
         self.metrics_tracker.increment_model_calls()  # increment model call count
+        flat_messages_filename = os.path.join(
+            WEB_DOCU_FOLDER, f'flat_messages_{self.page_counter}.txt'
+        )
+        with open(flat_messages_filename, 'w', encoding='utf-8') as f:
+            for message in messages:
+                f.write(f" {message}\n")
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,

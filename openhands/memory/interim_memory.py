@@ -1,7 +1,7 @@
 class InterimMemory:
     """ Class to store and manage interim results for final result."""
 
-    _memory: str = "Egg price 2015: 2.75 USD"
+    _memory: str = ""
 
     @classmethod
     def store(cls, content: str):

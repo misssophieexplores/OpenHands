@@ -5,7 +5,7 @@ import time
 import urllib.request
 from datetime import datetime
 
-from browsergym.core.action.highlevel import HighLevelActionSet
+from openhands.events.action.highlevel_interim_memory import InterimMemoryActionSet
 from browsergym.utils.obs import flatten_axtree_to_str
 
 from openhands.agenthub.browsing_agent.response_parser import BrowsingResponseParser
@@ -97,7 +97,7 @@ def create_observation_prompt(
 ) -> tuple[str, str | None]:
     txt_observation = f"""
 # Observation of current step:
-{tabs}{axtree_txt}{focused_element}{error_prefix}
+{interim_memory}{tabs}{axtree_txt}{focused_element}{error_prefix}\n
 """
 
     # screenshot + som: will be a non-empty string if present in observation
@@ -136,7 +136,7 @@ Note: You can only interact with visible elements. If the "visible" tag is not p
     return f'\n## AXTree:\n{bid_info}{visible_tag_info}{axtree_txt}\n'
 
 
-def get_action_prompt(action_set: HighLevelActionSet) -> str:
+def get_action_prompt(action_set: InterimMemoryActionSet) -> str:
     action_set_generic_info = """\
 Note: This action set allows you to interact with your environment. Most of them are python function executing playwright code. The primary way of referring to elements in the page is through bid which are specified in your observations.
 
@@ -194,7 +194,7 @@ class VisualBrowsingAgent(Agent):
             'tab',
             'infeas',
         ]
-        self.action_space = HighLevelActionSet(
+        self.action_space = InterimMemoryActionSet(
             subsets=action_subsets,
             strict=False,  # less strict on the parsing of the actions
             multiaction=False,
@@ -211,7 +211,6 @@ You must mandatorily think step by step. If you need to make calculations such a
 # Concrete Example
 
 Here is a concrete example of how to format your answer. Make sure to generate the action in the correct format, ensuring that the action is present inside ``````:
-
 ## Example 1: Handling UI interactions
 Let's think step-by-step. From the previous action, I tried to set the value of year to "2022" using select_option, but it doesn't appear to be in the form. It may be a dynamic dropdown, so I will try using click with the bid "324" and look at the response from the page.
 
@@ -260,6 +259,8 @@ Note:
         tabs = ''
         last_obs = None
         last_action = None
+        interim_memory = ''
+        include_interim_memory: bool = False
 
         if len(state.history) == 1:
             # for visualwebarena, webarena and miniwob++ eval, we need to retrieve the initial observation already in browser env
@@ -333,7 +334,12 @@ Note:
                 if hasattr(last_obs, 'last_browser_action')
                 else ''
             )
+            # change retrieval based on last_actiion_str:
+            if 'store_interim_memory(' in last_action_str or 'retrieve_interim_memory(' in last_action_str:
+                include_interim_memory = True
 
+            if include_interim_memory:
+                interim_memory = get_interim_memory(last_obs) 
             # Log to the separate file
             log_url_action_json(url=cur_url_str, action=last_action_str)
             self.metrics_tracker.track_visited_url(cur_url_str, last_action_str)
@@ -366,7 +372,7 @@ Note:
             self.metrics_tracker.set_query(goal)
         goal_txt, goal_images = create_goal_prompt(goal, image_urls)
         observation_txt, som_screenshot = create_observation_prompt(
-            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks
+            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks, interim_memory
         )
 
         # Save screenshot if available
@@ -374,11 +380,12 @@ Note:
             screenshot_filename = os.path.join(
                 WEB_DOCU_FOLDER,
                 f'screenshot_{self.page_counter}.png',
-            )  # save screenshot 
+            )  # save screenshot
             self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
 
             try:
                 urllib.request.urlretrieve(som_screenshot, screenshot_filename)
+                logger.info(f'Saved screenshot to {screenshot_filename}')
             except Exception as e:
                 logger.error(f'Failed to save screenshot: {e}')
 

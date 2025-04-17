@@ -13,6 +13,8 @@ from openhands.agenthub import (  # noqa: E402
     delegator_agent,
     dummy_agent,
     visualbrowsing_agent,
+    visualbrowsing_memory_agent,
+    textualbrowsing_memory_agent,
 )
 
 __all__ = [
@@ -21,6 +23,8 @@ __all__ = [
     'dummy_agent',
     'browsing_agent',
     'visualbrowsing_agent',
+    'visualbrowsing_memory_agent',
+    'textualbrowsing_memory_agent'
 ]
 
 for agent in all_microagents.values():

@@ -14,7 +14,7 @@ from openhands.controller.state.state import State
 from openhands.core.config import AgentConfig
 from openhands.core.logger import get_experiment_folder, get_web_docu_folder
 from openhands.core.logger import openhands_logger as logger
-from openhands.core.message import ImageContent, Message, TextContent
+from openhands.core.message import Message, TextContent
 from openhands.events.action import (
     Action,
     AgentFinishAction,
@@ -70,8 +70,7 @@ def get_error_prefix(obs: BrowserOutputObservation) -> str:
 
 
 def create_goal_prompt(
-    goal: str, image_urls: list[str] | None
-) -> tuple[str, list[str]]:
+    goal: str) -> str:
     goal_txt: str = f"""\
 # Instructions
 Review the current state of the page and all other information to find the best possible next action to accomplish your goal. Your answer will be interpreted and executed by a program, make sure to follow the formatting instructions.
@@ -79,13 +78,7 @@ Review the current state of the page and all other information to find the best 
 ## Goal:
 {goal}
 """
-    goal_image_urls = []
-    if image_urls is not None:
-        for idx, url in enumerate(image_urls):
-            goal_txt = goal_txt + f'Images: Goal input image ({idx+1})\n'
-            goal_image_urls.append(url)
-    goal_txt += '\n'
-    return goal_txt, goal_image_urls
+    return goal_txt
 
 
 def create_observation_prompt(
@@ -93,24 +86,13 @@ def create_observation_prompt(
     tabs: str,
     focused_element: str,
     error_prefix: str,
-    som_screenshot: str | None,
     interim_memory: str,
 ):
     txt_observation = f"""
 # Observation of current step:
 {interim_memory}{tabs}{axtree_txt}{focused_element}{error_prefix}\n
 """
-
-    # screenshot + som: will be a non-empty string if present in observation
-    screenshot_url = None
-    if (som_screenshot is not None) and (len(som_screenshot) > 0):
-        txt_observation += 'Image: Current page screenshot (Note that only visible portion of webpage is present in the screenshot. You may need to scroll to view the remaining portion of the web-page.\n'
-        screenshot_url = som_screenshot
-
-    else:
-        logger.info('SOM Screenshot not present in observation!')
-    txt_observation += '\n'
-    return txt_observation, screenshot_url
+    return txt_observation
 
 def get_interim_memory(obs: BrowserOutputObservation) -> str:
     """Retrieves interim memory from observation."""
@@ -165,10 +147,10 @@ def get_history_prompt(prev_actions: list[BrowseInteractiveAction]) -> str:
     return '\n'.join(history_prompt) + '\n'
 
 
-class VisualBrowsingMemoryAgent(Agent):
+class TextualBrowsingMemoryAgent(Agent):
     VERSION = '1.0'
     """
-    VisualBrowsingMemory Agent that can uses webpage screenshots during browsing.
+    TextualBrowsingMemoryAgent that can use interim memory during browsing.
     """
 
     sandbox_plugins: list[PluginRequirement] = []
@@ -188,7 +170,7 @@ class VisualBrowsingMemoryAgent(Agent):
 
         self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
-            model_name=llm.config.model, agent_name='openhands_memory_visual_browsing_agent'
+            model_name=llm.config.model, agent_name='openhands_memory_textual_browsing_agent'
         )
 
         # define a configurable action space, with chat functionality, web navigation, and webpage grounding using accessibility tree and HTML.
@@ -368,32 +350,18 @@ Note:
                     'Error when trying to process the accessibility tree: %s', e
                 )
                 return MessageAction('Error encountered when browsing.')
-            set_of_marks = last_obs.set_of_marks
-        goal, image_urls = state.get_current_user_intent()
+
+        goal, _ = state.get_current_user_intent()
 
         if goal is None:
             goal = state.inputs['task']
         # Store the query in metrics (only on first step)
         if self.metrics_tracker.query is None:
             self.metrics_tracker.set_query(goal)
-        goal_txt, goal_images = create_goal_prompt(goal, image_urls)
-        observation_txt, som_screenshot = create_observation_prompt(
-            cur_axtree_txt, tabs, focused_element, error_prefix, set_of_marks, interim_memory
+        goal_txt = create_goal_prompt(goal)
+        observation_txt  = create_observation_prompt(
+            cur_axtree_txt, tabs, focused_element, error_prefix, interim_memory
         )
-
-        # Save screenshot if available
-        if som_screenshot is not None and len(som_screenshot) > 0:
-            screenshot_filename = os.path.join(
-                WEB_DOCU_FOLDER,
-                f'screenshot_{self.page_counter}.png',
-            )  # save screenshot
-            self.metrics_tracker.increment_screenshot_count()  # increment screenshot count
-
-            try:
-                urllib.request.urlretrieve(som_screenshot, screenshot_filename)
-                logger.info(f'Saved screenshot to {screenshot_filename}')
-            except Exception as e:
-                logger.error(f'Failed to save screenshot: {e}')
 
         # Save the webpage structure (AXTree) and interaction history
         content_filename = os.path.join(
@@ -411,14 +379,11 @@ Note:
             # f.write(history_prompt + "\n")
         self.page_counter += 1
 
-        human_prompt: list[TextContent | ImageContent] = [
+        human_prompt: list[TextContent] = [
             TextContent(type='text', text=goal_txt)
         ]
-        if len(goal_images) > 0:
-            human_prompt.append(ImageContent(image_urls=goal_images))
         human_prompt.append(TextContent(type='text', text=observation_txt))
-        if som_screenshot is not None:
-            human_prompt.append(ImageContent(image_urls=[som_screenshot]))
+
         remaining_content = f"""
 {history_prompt}\
 {self.action_prompt}\
@@ -438,12 +403,15 @@ You are an agent trying to solve a web task based on the content of the page and
         flat_messages = self.llm.format_messages_for_llm(messages)
 
         self.metrics_tracker.increment_model_calls()  # increment model call count
+
+        # save the flat messages to a file
         flat_messages_filename = os.path.join(
             WEB_DOCU_FOLDER, f'flat_messages_{self.page_counter}.txt'
         )
         with open(flat_messages_filename, 'w', encoding='utf-8') as f:
             for message in messages:
-                f.write(f" {message}\n")
+                f.write(f" {messages}\n")
+
         response = self.llm.completion(
             messages=flat_messages,
             temperature=0.0,

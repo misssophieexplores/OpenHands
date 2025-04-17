@@ -32,10 +32,6 @@ from openhands.runtime.plugins import (
 EXPERIMENT_FOLDER = get_experiment_folder()
 WEB_DOCU_FOLDER = get_web_docu_folder()
 URL_LOG_FILE_JSON = os.path.join(EXPERIMENT_FOLDER, 'url_action_log.json')
-###
-
-
-###
 
 
 def initialize_url_log():
@@ -65,7 +61,7 @@ def log_url_action_json(url, action, agent_type='BrowsingAgent'):
         json.dump(logs, f, indent=4, ensure_ascii=False)
 
 
-###
+
 
 USE_NAV = (
     os.environ.get('USE_NAV', 'true') == 'true'
@@ -155,7 +151,7 @@ class BrowsingAgent(Agent):
         - llm (LLM): The llm to be used by this agent
         """
         super().__init__(llm, config)
-        ###
+
         self.page_counter = 1
         self.metrics_tracker = MetricsTracker(
             model_name=llm.config.model, agent_name='openhands_browsing_agent'
@@ -193,10 +189,10 @@ class BrowsingAgent(Agent):
         - AgentFinishAction() - end the interaction
         """
 
-        ###
+
         step_start_time = time.time()  # Start timing
         input_tokens, output_tokens = 0, 0  # Default token values
-        ###
+
         messages: list[Message] = []
         prev_actions = []
         cur_url = ''
@@ -323,6 +319,12 @@ class BrowsingAgent(Agent):
         messages.append(Message(role='system', content=[TextContent(text=system_msg)]))
 
         prompt = get_prompt(error_prefix, cur_url, cur_axtree_txt, prev_action_str)
+        # Save just the complete prompt
+        agent_input_filename = os.path.join(
+            WEB_DOCU_FOLDER, f'agent_prompt_{self.page_counter}.txt'
+        )
+        with open(agent_input_filename, 'w', encoding='utf-8') as f:
+            f.write(prompt)
         messages.append(Message(role='user', content=[TextContent(text=prompt)]))
 
         self.metrics_tracker.increment_model_calls()  # Increment model call count
